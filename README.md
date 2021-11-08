@@ -18,3 +18,7 @@ exec mwm
 - Status bar
 - EWMH compliant
 - Workspaces
+
+# Screenshot
+
+![Screenshot of mwm](screenshots/1.png)
