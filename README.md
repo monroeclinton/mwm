@@ -18,6 +18,7 @@ exec mwm
 - Status bar
 - EWMH compliant
 - Workspaces
+- Customizable layouts
 
 # Screenshot
 
