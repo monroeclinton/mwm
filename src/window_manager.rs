@@ -3,6 +3,7 @@ use crate::errors::{Result};
 use crate::key::{KeyPair};
 use std::collections::{VecDeque, HashMap};
 use std::process::Command;
+use std::rc::Rc;
 
 pub enum Event {
     Forward,
@@ -57,7 +58,8 @@ impl WindowManager {
 
         let values = [(
             xcb::CW_EVENT_MASK,
-            xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT
+            xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+            xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY
         )];
 
         let cookie = xcb::change_window_attributes_checked(&conn, screen.root(), &values);
@@ -92,6 +94,7 @@ impl WindowManager {
                 xcb::CONFIGURE_REQUEST => self.on_configure_request(unsafe { xcb::cast_event(&event) }), 
                 xcb::MAP_REQUEST => self.on_map_request(unsafe { xcb::cast_event(&event) }), 
                 xcb::ENTER_NOTIFY => self.on_enter_notify(unsafe { xcb::cast_event(&event) }),
+                xcb::UNMAP_NOTIFY => self.on_unmap_notify(unsafe { xcb::cast_event(&event) }),
                 _ => continue,
             };
 
@@ -165,7 +168,7 @@ impl WindowManager {
             return Ok(());
         }
 
-        if let Some(_) = self.window_to_client(event.window()) {
+        if self.clients.iter().any(|c| c.window == event.window()) {
             return Ok(());
         }
 
@@ -198,6 +201,14 @@ impl WindowManager {
         Ok(())
     }
 
+    fn on_unmap_notify(&mut self, event: &xcb::UnmapNotifyEvent) -> Result<()> {
+        self.remove_window(event.window())?;
+
+        self.resize();
+
+        Ok(())
+    }
+
     fn has_override_redirect(&self, window: xcb::Window) -> bool {
         let cookie = xcb::get_window_attributes(&self.conn, window);
 
@@ -208,14 +219,11 @@ impl WindowManager {
         }
     }
 
-    fn window_to_client(&self, window: xcb::Window) -> Option<&Client> {
-        for client in &self.clients {
-            if client.window == window {
-                return Some(&client);
-            }
-        }
+    fn remove_window(&mut self, window: xcb::Window) -> Result<()> {
+        self.clients
+            .retain(|client| client.window != window);
 
-        None
+        Ok(())
     }
 
     fn get_screen(&self) -> xcb::Screen {
