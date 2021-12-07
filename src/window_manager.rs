@@ -1,9 +1,9 @@
 use crate::client::{Client};
+use crate::config::{Config};
 use crate::errors::{Result};
 use crate::key::{KeyPair};
 use std::collections::{VecDeque, HashMap};
 use std::process::Command;
-use std::rc::Rc;
 
 pub enum Event {
     Forward,
@@ -24,7 +24,9 @@ pub struct WindowManager {
 }
 
 impl WindowManager {
-    pub fn new(keys: HashMap<KeyPair, Handler>) -> Self {
+    pub fn new(config: Config) -> Self {
+        let keys = config.keys;
+
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY enviroment variable.");
 
