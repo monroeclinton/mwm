@@ -130,35 +130,15 @@ impl WindowManager {
     }
 
     fn on_configure_request(&mut self, event: &xcb::ConfigureRequestEvent) -> Result<()> {
-        let mut values = Vec::new();
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_X as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_X as u16, event.x() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_Y as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_Y as u16, event.y() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_WIDTH as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_WIDTH as u16, event.width() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_HEIGHT as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_HEIGHT as u16, event.height() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_BORDER_WIDTH as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, event.border_width() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_SIBLING as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_SIBLING as u16, event.sibling() as u32))
-        }
-
-        if event.value_mask() & xcb::CONFIG_WINDOW_STACK_MODE as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_STACK_MODE as u16, event.stack_mode() as u32))
-        }
+        let values = vec![
+            (xcb::CONFIG_WINDOW_X as u16, event.x() as u32),
+            (xcb::CONFIG_WINDOW_Y as u16, event.y() as u32),
+            (xcb::CONFIG_WINDOW_WIDTH as u16, event.width() as u32),
+            (xcb::CONFIG_WINDOW_HEIGHT as u16, event.height() as u32),
+            (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, event.border_width() as u32),
+            (xcb::CONFIG_WINDOW_SIBLING as u16, event.sibling() as u32), // Default: NONE
+            (xcb::CONFIG_WINDOW_STACK_MODE as u16, event.stack_mode() as u32), // Default: STACK_MODE_ABOVE
+        ];
 
         xcb::configure_window(&self.conn, event.window(), &values);
 
