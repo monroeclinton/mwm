@@ -27,6 +27,11 @@ fn main() {
         plugins: vec![
             Box::new(plugins::load_window_mapper_plugin()),
         ],
+        // Border colors
+        border_thickness: 2,
+        border_gap: 4,
+        active_border: 0x3b7a82,
+        inactive_border: 0x444444,
     };
 
     WindowManager::new(config).run();

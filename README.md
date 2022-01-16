@@ -16,17 +16,8 @@ exec mwm
 In the `main.rs` file edit the config struct.
 ```rust
 let config = crate::config::Config {
-    keys: key_map!(
-        (
-            KeyPair { // If press alt-j then move window forward
-                modifiers: xcb::MOD_MASK_1 as u16, // Normally the alt key
-                keysym: x11::keysym::XK_j,
-            },
-            Handler {
-                command: None,
-                event: Some(Event::Forward),
-            }
-        ),
+    // Map commands to keypress
+    commands: key_map!(
         (
             KeyPair { // If press alt-p then open st (suckless.org simple terminal)
                 modifiers: xcb::MOD_MASK_1 as u16,
@@ -37,12 +28,20 @@ let config = crate::config::Config {
                 event: None,
             }
         )
-    )
+    ),
+    // Load plugins
+    plugins: vec![
+        Box::new(plugins::load_window_mapper_plugin()),
+    ],
+    // Border config
+    border_thickness: 2,
+    border_gap: 4,
+    active_border: 0x3b7a82,
+    inactive_border: 0x444444,
 };
 ```
 
 # Planned features
-- Plugin system
 - Multithreading (can be useful in certain cases)
 - Status bar
 - EWMH compliant

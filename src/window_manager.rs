@@ -9,8 +9,12 @@ pub struct WindowManager {
     conn: xcb::Connection,
     clients: VecDeque<Client>,
     plugins: Vec<Box<dyn PluginHandler>>,
-    active_window: usize,
     commands: HashMap<KeyPair, Command>,
+    active_window: usize,
+    border_thickness: u32,
+    border_gap: u32,
+    active_border: u32,
+    inactive_border: u32,
     running: bool,
 }
 
@@ -68,6 +72,10 @@ impl WindowManager {
         Self {
             conn: conn,
             active_window: 0,
+            border_thickness: config.border_thickness,
+            border_gap: config.border_gap,
+            active_border: config.active_border,
+            inactive_border: config.inactive_border,
             clients: VecDeque::new(),
             plugins,
             commands,
@@ -251,9 +259,9 @@ impl WindowManager {
     fn resize(&self) {
         let screen = self.get_screen();
 
-        let border = 4;
+        let border = self.border_thickness as usize;
         let border_double = border * 2;
-        let gap = 6;
+        let gap = self.border_gap as usize;
         let gap_double = gap * 2;
         let screen_width = screen.width_in_pixels() as usize;
         let screen_height = screen.height_in_pixels() as usize;
@@ -291,8 +299,11 @@ impl WindowManager {
     }
 
     fn set_active_window(&mut self, window: xcb::Window) -> Result<()> {
+        let active_border = self.active_border;
+        let inactive_border = self.inactive_border;
+
         xcb::change_window_attributes(&self.conn, window, &[
-            (xcb::CW_BORDER_PIXEL, 0x3b7a82),
+            (xcb::CW_BORDER_PIXEL, active_border),
         ]);
 
         for (i, client) in self.clients.iter().enumerate() {
@@ -300,7 +311,7 @@ impl WindowManager {
                 self.active_window = i;
             } else {
                 xcb::change_window_attributes(&self.conn, client.window, &[
-                    (xcb::CW_BORDER_PIXEL, 0x444444),
+                    (xcb::CW_BORDER_PIXEL, inactive_border),
                 ]);
             }
         }
