@@ -3,37 +3,31 @@ mod config;
 mod errors;
 mod key;
 mod macros;
+mod plugin;
+mod plugins;
 mod window_manager;
 
 use key::KeyPair;
-use window_manager::{WindowManager, Handler, Event};
+use window_manager::{WindowManager};
 use std::process::Command;
 
 fn main() {
     let config = crate::config::Config {
-        keys: key_map!(
-            (
-                KeyPair {
-                    modifiers: xcb::MOD_MASK_1 as u16,
-                    keysym: x11::keysym::XK_j,
-                },
-                Handler {
-                    command: None,
-                    event: Some(Event::Forward),
-                }
-            ),
+        // Create key maps
+        commands: key_map!(
             (
                 KeyPair {
                     modifiers: xcb::MOD_MASK_1 as u16,
                     keysym: x11::keysym::XK_p,
                 },
-                Handler {
-                    command: Some(Box::new(|| Command::new("st"))),
-                    event: None,
-                }
+                Box::new(|| Command::new("st"))
             )
-        )
+        ),
+        // Add plugins
+        plugins: vec![
+            Box::new(plugins::load_window_mapper_plugin()),
+        ],
     };
 
-    (WindowManager::new(config)).run();
+    WindowManager::new(config).run();
 }

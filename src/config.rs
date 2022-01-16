@@ -1,7 +1,10 @@
-use crate::key::{KeyPair};
-use crate::window_manager::{Handler};
-use std::collections::{HashMap};
+use crate::key::KeyPair;
+use crate::plugin::PluginHandler;
+use std::collections::HashMap;
+
+pub type Command = Box<dyn Fn() -> std::process::Command>;
 
 pub struct Config {
-    pub keys: HashMap<KeyPair, Handler>,
+    pub commands: HashMap<KeyPair, Command>,
+    pub plugins: Vec<Box<dyn PluginHandler>>,
 }

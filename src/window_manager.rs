@@ -1,31 +1,23 @@
-use crate::client::{Client};
-use crate::config::{Config};
-use crate::errors::{Result};
-use crate::key::{KeyPair};
+use crate::client::Client;
+use crate::config::{Config, Command};
+use crate::errors::Result;
+use crate::plugin::{EventContext, PluginHandler};
+use crate::key::KeyPair;
 use std::collections::{VecDeque, HashMap};
-use std::process::Command;
-
-pub enum Event {
-    Forward,
-    Backward,
-}
-
-pub struct Handler {
-    pub command: Option<Box<dyn Fn() -> Command>>,
-    pub event: Option<Event>,
-}
 
 pub struct WindowManager {
     conn: xcb::Connection,
     clients: VecDeque<Client>,
+    plugins: Vec<Box<dyn PluginHandler>>,
     active_window: usize,
-    keys: HashMap<KeyPair, Handler>,
+    commands: HashMap<KeyPair, Command>,
     running: bool,
 }
 
 impl WindowManager {
     pub fn new(config: Config) -> Self {
-        let keys = config.keys;
+        let plugins = config.plugins;
+        let commands = config.commands;
 
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY enviroment variable.");
@@ -36,7 +28,7 @@ impl WindowManager {
         };
 
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&conn);
-        for pair in keys.keys() {
+        for pair in commands.keys() {
             match key_symbols.get_keycode(pair.keysym).next() {
                 Some(keycode) => {
                     xcb::grab_key(
@@ -77,7 +69,8 @@ impl WindowManager {
             conn: conn,
             active_window: 0,
             clients: VecDeque::new(),
-            keys,
+            plugins,
+            commands,
             running: false,
         }
     }
@@ -110,20 +103,26 @@ impl WindowManager {
 
     fn on_key_press(&mut self, event: &xcb::KeyPressEvent) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
-        for pair in self.keys.keys() {
+        for pair in self.commands.keys() {
             match key_symbols.get_keycode(pair.keysym).next() {
                 Some(keycode) => {
                     if keycode == event.detail() && pair.modifiers == event.state() {
-                        let key = self.keys.get(pair).unwrap();
-                        if let Some(command) = &key.command {
-                            (*command)().spawn().unwrap();
-                        }
+                        let command = self.commands.get(pair).unwrap();
+                        (*command)().spawn().unwrap();
                     }
                 },
                 _ => {
                     dbg!("Failed to find keycode for keysym: {}", pair.keysym);
                 }
             }
+        }
+
+        let conn = &self.conn;
+        for plugin in self.plugins.iter() {
+            plugin.on_key_press(EventContext {
+                conn,
+                event,
+            });
         }
 
         Ok(())
@@ -141,6 +140,14 @@ impl WindowManager {
         ];
 
         xcb::configure_window(&self.conn, event.window(), &values);
+
+        let conn = &self.conn;
+        for plugin in self.plugins.iter() {
+            plugin.on_configure_request(EventContext {
+                conn,
+                event,
+            });
+        }
 
         Ok(())
     }
@@ -172,13 +179,31 @@ impl WindowManager {
 
         self.resize();
 
+        let conn = &self.conn;
+        for plugin in self.plugins.iter() {
+            plugin.on_map_request(EventContext {
+                conn,
+                event,
+            });
+        }
+
         Ok(())
     }
 
     fn on_enter_notify(&mut self, event: &xcb::EnterNotifyEvent) -> Result<()> {
         self.set_active_window(event.event())?;
 
-        xcb::set_input_focus(&self.conn, xcb::INPUT_FOCUS_PARENT as u8, event.event(), xcb::CURRENT_TIME);
+        xcb::set_input_focus(
+            &self.conn, xcb::INPUT_FOCUS_PARENT as u8, event.event(), xcb::CURRENT_TIME
+        );
+
+        let conn = &self.conn;
+        for plugin in self.plugins.iter() {
+            plugin.on_enter_notify(EventContext {
+                conn,
+                event,
+            });
+        }
 
         Ok(())
     }
@@ -187,6 +212,14 @@ impl WindowManager {
         self.remove_window(event.window())?;
 
         self.resize();
+
+        let conn = &self.conn;
+        for plugin in self.plugins.iter() {
+            plugin.on_unmap_notify(EventContext {
+                conn,
+                event,
+            });
+        }
 
         Ok(())
     }
@@ -215,7 +248,7 @@ impl WindowManager {
         };
     }
 
-    fn resize(&mut self) {
+    fn resize(&self) {
         let screen = self.get_screen();
 
         let border = 4;
