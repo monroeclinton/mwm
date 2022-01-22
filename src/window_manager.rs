@@ -1,28 +1,28 @@
 use crate::client::Client;
-use crate::config::{Config, Command};
+use crate::config::Config;
 use crate::errors::Result;
-use crate::plugin::{EventContext, PluginHandler};
 use crate::key::KeyPair;
-use std::collections::{VecDeque, HashMap};
+use crate::plugin::{EventContext, PluginHandler};
+use std::collections::{HashMap, VecDeque};
+
+pub type Command = Box<dyn Fn() -> std::process::Command>;
 
 pub struct WindowManager {
     conn: xcb::Connection,
     clients: VecDeque<Client>,
     plugins: Vec<Box<dyn PluginHandler>>,
     commands: HashMap<KeyPair, Command>,
+    config: Config,
     active_window: usize,
-    border_thickness: u32,
-    border_gap: u32,
-    active_border: u32,
-    inactive_border: u32,
     running: bool,
 }
 
 impl WindowManager {
-    pub fn new(config: Config) -> Self {
-        let plugins = config.plugins;
-        let commands = config.commands;
-
+    pub fn new(
+        config: Config,
+        commands: HashMap<KeyPair, Command>,
+        plugins: Vec<Box<dyn PluginHandler>>,
+    ) -> Self {
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY enviroment variable.");
 
@@ -56,29 +56,25 @@ impl WindowManager {
 
         let values = [(
             xcb::CW_EVENT_MASK,
-            xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT |
-            xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY
+            xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT | xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY,
         )];
 
         let cookie = xcb::change_window_attributes_checked(&conn, screen.root(), &values);
 
         match cookie.request_check() {
             Ok(_) => (),
-            Err(_) => panic!(
-                "Unable to change window attributes. Is another window manager running?"
-            ),
+            Err(_) => {
+                panic!("Unable to change window attributes. Is another window manager running?")
+            }
         }
 
         Self {
-            conn: conn,
+            conn,
             active_window: 0,
-            border_thickness: config.border_thickness,
-            border_gap: config.border_gap,
-            active_border: config.active_border,
-            inactive_border: config.inactive_border,
             clients: VecDeque::new(),
             plugins,
             commands,
+            config,
             running: false,
         }
     }
