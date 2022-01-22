@@ -1,3 +1,3 @@
-mod window_mapper;
+mod window_sizer;
 
-pub use window_mapper::load_window_mapper_plugin;
+pub use window_sizer::load_window_sizer_plugin;

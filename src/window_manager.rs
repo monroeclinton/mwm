@@ -114,17 +114,19 @@ impl WindowManager {
                         let command = self.commands.get(pair).unwrap();
                         (*command)().spawn().unwrap();
                     }
-                },
+                }
                 _ => {
                     dbg!("Failed to find keycode for keysym: {}", pair.keysym);
                 }
             }
         }
 
-        let conn = &self.conn;
         for plugin in self.plugins.iter() {
             plugin.on_key_press(EventContext {
-                conn,
+                conn: &self.conn,
+                clients: &self.clients,
+                config: &self.config,
+                screen: &self.get_screen(),
                 event,
             });
         }
@@ -138,17 +140,25 @@ impl WindowManager {
             (xcb::CONFIG_WINDOW_Y as u16, event.y() as u32),
             (xcb::CONFIG_WINDOW_WIDTH as u16, event.width() as u32),
             (xcb::CONFIG_WINDOW_HEIGHT as u16, event.height() as u32),
-            (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, event.border_width() as u32),
+            (
+                xcb::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                event.border_width() as u32,
+            ),
             (xcb::CONFIG_WINDOW_SIBLING as u16, event.sibling() as u32), // Default: NONE
-            (xcb::CONFIG_WINDOW_STACK_MODE as u16, event.stack_mode() as u32), // Default: STACK_MODE_ABOVE
+            (
+                xcb::CONFIG_WINDOW_STACK_MODE as u16,
+                event.stack_mode() as u32,
+            ), // Default: STACK_MODE_ABOVE
         ];
 
         xcb::configure_window(&self.conn, event.window(), &values);
 
-        let conn = &self.conn;
         for plugin in self.plugins.iter() {
             plugin.on_configure_request(EventContext {
-                conn,
+                conn: &self.conn,
+                clients: &self.clients,
+                config: &self.config,
+                screen: &self.get_screen(),
                 event,
             });
         }
@@ -181,12 +191,12 @@ impl WindowManager {
 
         xcb::map_window(&self.conn, event.window());
 
-        self.resize();
-
-        let conn = &self.conn;
         for plugin in self.plugins.iter() {
             plugin.on_map_request(EventContext {
-                conn,
+                conn: &self.conn,
+                clients: &self.clients,
+                config: &self.config,
+                screen: &self.get_screen(),
                 event,
             });
         }
@@ -198,13 +208,18 @@ impl WindowManager {
         self.set_active_window(event.event())?;
 
         xcb::set_input_focus(
-            &self.conn, xcb::INPUT_FOCUS_PARENT as u8, event.event(), xcb::CURRENT_TIME
+            &self.conn,
+            xcb::INPUT_FOCUS_PARENT as u8,
+            event.event(),
+            xcb::CURRENT_TIME,
         );
 
-        let conn = &self.conn;
         for plugin in self.plugins.iter() {
             plugin.on_enter_notify(EventContext {
-                conn,
+                conn: &self.conn,
+                clients: &self.clients,
+                config: &self.config,
+                screen: &self.get_screen(),
                 event,
             });
         }
@@ -215,12 +230,12 @@ impl WindowManager {
     fn on_unmap_notify(&mut self, event: &xcb::UnmapNotifyEvent) -> Result<()> {
         self.remove_window(event.window())?;
 
-        self.resize();
-
-        let conn = &self.conn;
         for plugin in self.plugins.iter() {
             plugin.on_unmap_notify(EventContext {
-                conn,
+                conn: &self.conn,
+                clients: &self.clients,
+                config: &self.config,
+                screen: &self.get_screen(),
                 event,
             });
         }
