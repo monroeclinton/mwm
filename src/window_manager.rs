@@ -42,10 +42,9 @@ impl WindowManager {
                         pair.modifiers,
                         keycode,
                         xcb::GRAB_MODE_ASYNC as u8,
-                        xcb::GRAB_MODE_ASYNC as u8
+                        xcb::GRAB_MODE_ASYNC as u8,
                     );
-
-                },
+                }
                 _ => {
                     dbg!("Failed to find keycode for keysym: {}", pair.keysym);
                 }
@@ -90,15 +89,20 @@ impl WindowManager {
 
             let status = match event.response_type() {
                 xcb::KEY_PRESS => self.on_key_press(unsafe { xcb::cast_event(&event) }),
-                xcb::CONFIGURE_REQUEST => self.on_configure_request(unsafe { xcb::cast_event(&event) }), 
-                xcb::MAP_REQUEST => self.on_map_request(unsafe { xcb::cast_event(&event) }), 
+                xcb::CONFIGURE_REQUEST => {
+                    self.on_configure_request(unsafe { xcb::cast_event(&event) })
+                }
+                xcb::MAP_REQUEST => self.on_map_request(unsafe { xcb::cast_event(&event) }),
                 xcb::ENTER_NOTIFY => self.on_enter_notify(unsafe { xcb::cast_event(&event) }),
                 xcb::UNMAP_NOTIFY => self.on_unmap_notify(unsafe { xcb::cast_event(&event) }),
                 _ => continue,
             };
 
             if status.is_err() {
-                dbg!("Error occured processing event: {:?}", event.response_type());
+                dbg!(
+                    "Error occured processing event: {:?}",
+                    event.response_type()
+                );
             }
 
             self.conn.flush();
@@ -175,10 +179,7 @@ impl WindowManager {
             return Ok(());
         }
 
-        let values = [(
-            xcb::CW_EVENT_MASK,
-            xcb::EVENT_MASK_ENTER_WINDOW
-        )];
+        let values = [(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_ENTER_WINDOW)];
 
         xcb::change_window_attributes(&self.conn, event.window(), &values);
 
@@ -247,15 +248,14 @@ impl WindowManager {
         let cookie = xcb::get_window_attributes(&self.conn, window);
 
         if let Ok(attrs) = cookie.get_reply() {
-            attrs.override_redirect() 
+            attrs.override_redirect()
         } else {
             false
         }
     }
 
     fn remove_window(&mut self, window: xcb::Window) -> Result<()> {
-        self.clients
-            .retain(|client| client.window != window);
+        self.clients.retain(|client| client.window != window);
 
         Ok(())
     }
@@ -267,63 +267,21 @@ impl WindowManager {
         };
     }
 
-    fn resize(&self) {
-        let screen = self.get_screen();
-
-        let border = self.border_thickness as usize;
-        let border_double = border * 2;
-        let gap = self.border_gap as usize;
-        let gap_double = gap * 2;
-        let screen_width = screen.width_in_pixels() as usize;
-        let screen_height = screen.height_in_pixels() as usize;
-        let clients_length = self.clients.len();
-
-        for (i, client) in self.clients.iter().enumerate() {
-            let (mut x, mut y) = (gap, gap);
-
-            let (mut width, mut height) = (
-                screen_width - border_double - gap_double,
-                screen_height - border_double - gap_double,
-            );
-
-            if clients_length > 1 {
-                width = (width - border_double - gap_double) / 2;
-
-                if i > 0 {
-                    let window_height = screen_height / (clients_length - 1);
-
-                    x = width + border_double + gap_double + gap;
-                    y = window_height * (i - 1) + gap;
-
-                    height = window_height - border_double - gap_double;
-                }
-            }
-
-            xcb::configure_window(&self.conn, client.window, &[
-                (xcb::CONFIG_WINDOW_X as u16, x as u32),
-                (xcb::CONFIG_WINDOW_Y as u16, y as u32),
-                (xcb::CONFIG_WINDOW_WIDTH as u16, width as u32),
-                (xcb::CONFIG_WINDOW_HEIGHT as u16, height as u32),
-                (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
-            ]);
-        }
-    }
-
     fn set_active_window(&mut self, window: xcb::Window) -> Result<()> {
-        let active_border = self.active_border;
-        let inactive_border = self.inactive_border;
+        let active_border = self.config.active_border;
+        let inactive_border = self.config.inactive_border;
 
-        xcb::change_window_attributes(&self.conn, window, &[
-            (xcb::CW_BORDER_PIXEL, active_border),
-        ]);
+        xcb::change_window_attributes(&self.conn, window, &[(xcb::CW_BORDER_PIXEL, active_border)]);
 
         for (i, client) in self.clients.iter().enumerate() {
             if client.window == window {
                 self.active_window = i;
             } else {
-                xcb::change_window_attributes(&self.conn, client.window, &[
-                    (xcb::CW_BORDER_PIXEL, inactive_border),
-                ]);
+                xcb::change_window_attributes(
+                    &self.conn,
+                    client.window,
+                    &[(xcb::CW_BORDER_PIXEL, inactive_border)],
+                );
             }
         }
 
