@@ -33,6 +33,23 @@ fn main() {
     let plugins: Vec<Box<dyn PluginHandler>> = vec![
         // Used for setting window layout
         Box::new(plugins::load_window_sizer_plugin()),
+        // Handle movement between windows
+        Box::new(plugins::load_window_selector_plugin(selector_map!(
+            (
+                KeyPair {
+                    modifiers: xcb::MOD_MASK_1 as u16,
+                    keysym: x11::keysym::XK_j,
+                },
+                plugins::window_selector::Event::Forward
+            ),
+            (
+                KeyPair {
+                    modifiers: xcb::MOD_MASK_1 as u16,
+                    keysym: x11::keysym::XK_k,
+                },
+                plugins::window_selector::Event::Backward
+            )
+        ))),
     ];
 
     WindowManager::new(config, commands, plugins).run();

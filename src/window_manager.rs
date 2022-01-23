@@ -13,7 +13,6 @@ pub struct WindowManager {
     plugins: Vec<Box<dyn PluginHandler>>,
     commands: HashMap<KeyPair, Command>,
     config: Config,
-    active_window: usize,
     running: bool,
 }
 
