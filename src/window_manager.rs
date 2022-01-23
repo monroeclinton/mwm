@@ -2,7 +2,7 @@ use crate::client::Client;
 use crate::config::Config;
 use crate::errors::Result;
 use crate::key::KeyPair;
-use crate::plugin::{EventContext, PluginHandler};
+use crate::plugin::{EventContext, InitContext, PluginHandler};
 use std::collections::{HashMap, VecDeque};
 
 pub type Command = Box<dyn Fn() -> std::process::Command>;
@@ -67,9 +67,15 @@ impl WindowManager {
             }
         }
 
+        for plugin in plugins.iter() {
+            plugin.init(InitContext {
+                conn: &conn,
+                screen: &screen,
+            });
+        }
+
         Self {
             conn,
-            active_window: 0,
             clients: VecDeque::new(),
             plugins,
             commands,
@@ -112,25 +118,25 @@ impl WindowManager {
     fn on_key_press(&mut self, event: &xcb::KeyPressEvent) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
         for pair in self.commands.keys() {
-            match key_symbols.get_keycode(pair.keysym).next() {
-                Some(keycode) => {
-                    if keycode == event.detail() && pair.modifiers == event.state() {
-                        let command = self.commands.get(pair).unwrap();
-                        (*command)().spawn().unwrap();
-                    }
-                }
-                _ => {
-                    dbg!("Failed to find keycode for keysym: {}", pair.keysym);
+            if let Some(keycode) = key_symbols.get_keycode(pair.keysym).next() {
+                if keycode == event.detail() && pair.modifiers == event.state() {
+                    let command = self.commands.get(pair).unwrap();
+                    (*command)().spawn().unwrap();
                 }
             }
         }
 
-        for plugin in self.plugins.iter() {
+        let screen = match self.conn.get_setup().roots().next() {
+            Some(s) => s,
+            None => panic!("Unable to find a screen."),
+        };
+
+        for plugin in self.plugins.iter_mut() {
             plugin.on_key_press(EventContext {
                 conn: &self.conn,
                 clients: &self.clients,
                 config: &self.config,
-                screen: &self.get_screen(),
+                screen: &screen,
                 event,
             });
         }
@@ -157,12 +163,17 @@ impl WindowManager {
 
         xcb::configure_window(&self.conn, event.window(), &values);
 
-        for plugin in self.plugins.iter() {
+        let screen = match self.conn.get_setup().roots().next() {
+            Some(s) => s,
+            None => panic!("Unable to find a screen."),
+        };
+
+        for plugin in self.plugins.iter_mut() {
             plugin.on_configure_request(EventContext {
                 conn: &self.conn,
                 clients: &self.clients,
                 config: &self.config,
-                screen: &self.get_screen(),
+                screen: &screen,
                 event,
             });
         }
@@ -187,17 +198,21 @@ impl WindowManager {
             window: event.window(),
         };
 
-        self.set_active_window(client.window)?;
         self.clients.push_front(client);
 
         xcb::map_window(&self.conn, event.window());
 
-        for plugin in self.plugins.iter() {
+        let screen = match self.conn.get_setup().roots().next() {
+            Some(s) => s,
+            None => panic!("Unable to find a screen."),
+        };
+
+        for plugin in self.plugins.iter_mut() {
             plugin.on_map_request(EventContext {
                 conn: &self.conn,
                 clients: &self.clients,
                 config: &self.config,
-                screen: &self.get_screen(),
+                screen: &screen,
                 event,
             });
         }
@@ -206,21 +221,17 @@ impl WindowManager {
     }
 
     fn on_enter_notify(&mut self, event: &xcb::EnterNotifyEvent) -> Result<()> {
-        self.set_active_window(event.event())?;
+        let screen = match self.conn.get_setup().roots().next() {
+            Some(s) => s,
+            None => panic!("Unable to find a screen."),
+        };
 
-        xcb::set_input_focus(
-            &self.conn,
-            xcb::INPUT_FOCUS_PARENT as u8,
-            event.event(),
-            xcb::CURRENT_TIME,
-        );
-
-        for plugin in self.plugins.iter() {
+        for plugin in self.plugins.iter_mut() {
             plugin.on_enter_notify(EventContext {
                 conn: &self.conn,
                 clients: &self.clients,
                 config: &self.config,
-                screen: &self.get_screen(),
+                screen: &screen,
                 event,
             });
         }
@@ -231,12 +242,17 @@ impl WindowManager {
     fn on_unmap_notify(&mut self, event: &xcb::UnmapNotifyEvent) -> Result<()> {
         self.remove_window(event.window())?;
 
-        for plugin in self.plugins.iter() {
+        let screen = match self.conn.get_setup().roots().next() {
+            Some(s) => s,
+            None => panic!("Unable to find a screen."),
+        };
+
+        for plugin in self.plugins.iter_mut() {
             plugin.on_unmap_notify(EventContext {
                 conn: &self.conn,
                 clients: &self.clients,
                 config: &self.config,
-                screen: &self.get_screen(),
+                screen: &screen,
                 event,
             });
         }
@@ -256,34 +272,6 @@ impl WindowManager {
 
     fn remove_window(&mut self, window: xcb::Window) -> Result<()> {
         self.clients.retain(|client| client.window != window);
-
-        Ok(())
-    }
-
-    fn get_screen(&self) -> xcb::Screen {
-        return match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
-    }
-
-    fn set_active_window(&mut self, window: xcb::Window) -> Result<()> {
-        let active_border = self.config.active_border;
-        let inactive_border = self.config.inactive_border;
-
-        xcb::change_window_attributes(&self.conn, window, &[(xcb::CW_BORDER_PIXEL, active_border)]);
-
-        for (i, client) in self.clients.iter().enumerate() {
-            if client.window == window {
-                self.active_window = i;
-            } else {
-                xcb::change_window_attributes(
-                    &self.conn,
-                    client.window,
-                    &[(xcb::CW_BORDER_PIXEL, inactive_border)],
-                );
-            }
-        }
 
         Ok(())
     }

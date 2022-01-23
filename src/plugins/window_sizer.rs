@@ -2,10 +2,16 @@ use crate::client::Client;
 use crate::plugin::{MapRequestContext, Plugin, PluginHandler};
 use std::collections::VecDeque;
 
+pub fn load_window_sizer_plugin() -> Plugin<PluginContext> {
+    Plugin {
+        context: PluginContext {},
+    }
+}
+
 pub struct PluginContext;
 
 impl PluginHandler for Plugin<PluginContext> {
-    fn on_map_request(&self, ectx: MapRequestContext) {
+    fn on_map_request(&mut self, ectx: MapRequestContext) {
         resize(
             ectx.conn,
             ectx.clients,
@@ -14,12 +20,6 @@ impl PluginHandler for Plugin<PluginContext> {
             ectx.config.border_thickness,
             ectx.config.border_gap,
         );
-    }
-}
-
-pub fn load_window_sizer_plugin() -> Plugin<PluginContext> {
-    Plugin {
-        context: PluginContext {},
     }
 }
 
