@@ -1,9 +1,9 @@
 #[macro_export]
-macro_rules! key_map {
+macro_rules! command_map {
     ( $( ($x:expr, $y:expr) ),* ) => {
         {
-            use std::collections::HashMap;
-            let mut keys = HashMap::<$crate::key::KeyPair, $crate::window_manager::Command>::new();
+
+            let mut keys = std::collections::HashMap::<$crate::key::KeyPair, $crate::window_manager::Command>::new();
 
             $(
                 keys.insert($x, $y);

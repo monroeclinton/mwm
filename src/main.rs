@@ -21,7 +21,7 @@ fn main() {
     };
 
     // Create key maps
-    let commands = key_map!((
+    let commands = command_map!((
         KeyPair {
             modifiers: xcb::MOD_MASK_1 as u16,
             keysym: x11::keysym::XK_p,
