@@ -1,6 +1,5 @@
 mod client;
 mod config;
-mod errors;
 mod key;
 mod macros;
 mod plugin;

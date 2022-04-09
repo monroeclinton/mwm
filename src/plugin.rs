@@ -1,6 +1,7 @@
 use crate::client::Client;
 use crate::config::Config;
 use std::collections::VecDeque;
+use anyhow::Result;
 
 pub struct InitContext<'a> {
     pub conn: &'a xcb::Connection,
@@ -23,11 +24,11 @@ pub type UnmapNotifyContext<'a> = EventContext<'a, &'a xcb::UnmapNotifyEvent>;
 
 pub trait PluginHandler {
     fn init(&self, _: InitContext) {}
-    fn on_key_press(&mut self, _: KeyPressContext) {}
-    fn on_configure_request(&mut self, _: ConfigureRequestContext) {}
-    fn on_map_request(&mut self, _: MapRequestContext) {}
-    fn on_enter_notify(&mut self, _: EnterNotifyContext) {}
-    fn on_unmap_notify(&mut self, _: UnmapNotifyContext) {}
+    fn on_key_press(&mut self, _: KeyPressContext) -> Result<()> { Ok(()) }
+    fn on_configure_request(&mut self, _: ConfigureRequestContext) -> Result<()> { Ok(()) }
+    fn on_map_request(&mut self, _: MapRequestContext) -> Result<()> { Ok(()) }
+    fn on_enter_notify(&mut self, _: EnterNotifyContext) -> Result<()> { Ok(()) }
+    fn on_unmap_notify(&mut self, _: UnmapNotifyContext) -> Result<()> { Ok(()) }
 }
 
 pub struct Plugin<C> {

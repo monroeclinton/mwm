@@ -1,9 +1,9 @@
 use crate::client::Client;
 use crate::config::Config;
-use crate::errors::Result;
 use crate::key::KeyPair;
 use crate::plugin::{EventContext, InitContext, PluginHandler};
 use std::collections::{HashMap, VecDeque};
+use anyhow::Result;
 
 pub type Command = Box<dyn Fn() -> std::process::Command>;
 
@@ -137,7 +137,7 @@ impl WindowManager {
                 config: &self.config,
                 screen: &screen,
                 event,
-            });
+            })?;
         }
 
         Ok(())
@@ -174,7 +174,7 @@ impl WindowManager {
                 config: &self.config,
                 screen: &screen,
                 event,
-            });
+            })?;
         }
 
         Ok(())
@@ -213,7 +213,7 @@ impl WindowManager {
                 config: &self.config,
                 screen: &screen,
                 event,
-            });
+            })?;
         }
 
         Ok(())
@@ -232,7 +232,7 @@ impl WindowManager {
                 config: &self.config,
                 screen: &screen,
                 event,
-            });
+            })?;
         }
 
         Ok(())
@@ -253,7 +253,7 @@ impl WindowManager {
                 config: &self.config,
                 screen: &screen,
                 event,
-            });
+            })?;
         }
 
         Ok(())

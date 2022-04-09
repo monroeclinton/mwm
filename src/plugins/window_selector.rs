@@ -3,8 +3,8 @@ use crate::config::Config;
 use crate::key::KeyPair;
 use crate::plugin::{EnterNotifyContext, InitContext, KeyPressContext, Plugin, PluginHandler};
 use std::collections::{HashMap, VecDeque};
+use anyhow::{Context, Result};
 
-// TODO: This plugin needs some clean up...
 pub fn load_window_selector_plugin(events: HashMap<KeyPair, Event>) -> Plugin<PluginContext> {
     Plugin {
         context: PluginContext {
@@ -18,7 +18,10 @@ pub fn load_window_selector_plugin(events: HashMap<KeyPair, Event>) -> Plugin<Pl
 macro_rules! selector_map {
     ( $( ($x:expr, $y:expr) ),* ) => {
         {
-            let mut keys = std::collections::HashMap::<$crate::key::KeyPair, $crate::plugins::window_selector::Event>::new();
+            let mut keys = std::collections::HashMap::<
+                $crate::key::KeyPair,
+                $crate::plugins::window_selector::Event
+            >::new();
 
             $(
                 keys.insert($x, $y);
@@ -62,23 +65,29 @@ impl PluginHandler for Plugin<PluginContext> {
         }
     }
 
-    fn on_key_press(&mut self, ectx: KeyPressContext) {
+    fn on_key_press(&mut self, ectx: KeyPressContext) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(ectx.conn);
-        for pair in self.context.events.keys() {
-            if let Some(keycode) = key_symbols.get_keycode(pair.keysym).next() {
-                if keycode == ectx.event.detail() && pair.modifiers == ectx.event.state() {
-                    if let Some(event) = self.context.events.get(pair) {
-                        self.context.active_window =
-                            move_window(&self.context.active_window, event, &ectx);
-                    }
+
+        for (pair, event) in self.context.events.iter() {
+            let keycode = key_symbols
+                .get_keycode(pair.keysym)
+                .next()
+                .context("Unknown keycode found in window_selector plugin.")?;
+
+            if keycode == ectx.event.detail() && pair.modifiers == ectx.event.state() {
+                if let Some(window) = move_window(&self.context.active_window, event, &ectx)? {
+                    self.context.active_window = window;
                 }
             }
         }
+
+        Ok(())
     }
 
-    fn on_enter_notify(&mut self, ectx: EnterNotifyContext) {
+    fn on_enter_notify(&mut self, ectx: EnterNotifyContext) -> Result<()> {
         self.context.active_window = ectx.event.event();
         set_active_window(ectx.conn, ectx.config, ectx.clients, ectx.event.event());
+        Ok(())
     }
 }
 
@@ -111,37 +120,40 @@ fn set_active_window(
     }
 }
 
-fn move_window(active_window: &xcb::Window, event: &Event, ectx: &KeyPressContext) -> u32 {
-    if let Some(pos) = ectx.clients.iter().position(|c| &c.window == active_window) {
-        match event {
-            Event::Forward => {
-                let new_window_pos = if pos >= ectx.clients.len() - 1 {
-                    0
-                } else {
-                    pos + 1
-                };
+fn move_window(
+    active_window: &xcb::Window,
+    event: &Event,
+    ectx: &KeyPressContext
+) -> Result<Option<xcb::Window>> {
+    let pos = ectx.clients
+        .iter()
+        .position(|c| &c.window == active_window)
+        .unwrap_or(0);
 
-                let window = ectx.clients.get(new_window_pos).unwrap().window;
-                set_active_window(ectx.conn, ectx.config, ectx.clients, window);
-
-                window
+    let new_window_pos = match event {
+        Event::Forward => {
+            if pos >= ectx.clients.len() - 1 {
+                0
+            } else {
+                pos + 1
             }
-            Event::Backward => {
-                let new_window_pos = if pos == 0 && ectx.clients.len() == 0 {
-                    0
-                } else if pos == 0 && ectx.clients.len() > 0 {
-                    ectx.clients.len() - 1
-                } else {
-                    pos - 1
-                };
-
-                let window = ectx.clients.get(new_window_pos).unwrap().window;
-                set_active_window(ectx.conn, ectx.config, ectx.clients, window);
-
-                window
+        },
+        Event::Backward => {
+            if pos == 0 && ectx.clients.len() == 0 {
+                0
+            } else if pos == 0 && ectx.clients.len() > 0 {
+                ectx.clients.len() - 1
+            } else {
+                pos - 1
             }
-        }
+        },
+    };
+
+    if let Some(client) = ectx.clients.get(new_window_pos) {
+        let window = client.window;
+        set_active_window(ectx.conn, ectx.config, ectx.clients, window);
+        Ok(Some(window))
     } else {
-        0
+        Ok(None)
     }
 }

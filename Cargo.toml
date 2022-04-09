@@ -6,7 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = "1.0.30"
+anyhow = "1.0.56"
 x11 = "2.19.1"
 xcb = { version = "0.10.1", features = ["xkb"] }
 xcb-util = { version = "0.4.0", features = ["keysyms"] }
