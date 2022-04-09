@@ -1,6 +1,6 @@
 use crate::client::Client;
 use crate::config::Config;
-use crate::key::KeyPair;
+use crate::key::{KeyPair, grab_key};
 use crate::plugin::{EnterNotifyContext, InitContext, KeyPressContext, Plugin, PluginHandler};
 use std::collections::{HashMap, VecDeque};
 use anyhow::{Context, Result};
@@ -44,24 +44,8 @@ pub struct PluginContext {
 
 impl PluginHandler for Plugin<PluginContext> {
     fn init(&self, ictx: InitContext) {
-        let key_symbols = xcb_util::keysyms::KeySymbols::new(ictx.conn);
         for pair in self.context.events.keys() {
-            match key_symbols.get_keycode(pair.keysym).next() {
-                Some(keycode) => {
-                    xcb::grab_key(
-                        ictx.conn,
-                        false,
-                        ictx.screen.root(),
-                        pair.modifiers,
-                        keycode,
-                        xcb::GRAB_MODE_ASYNC as u8,
-                        xcb::GRAB_MODE_ASYNC as u8,
-                    );
-                }
-                _ => {
-                    dbg!("Failed to find keycode for keysym: {}", pair.keysym);
-                }
-            }
+            grab_key(pair, ictx.conn, ictx.screen.root());
         }
     }
 
