@@ -104,9 +104,10 @@ impl WindowManager {
             };
 
             if status.is_err() {
-                dbg!(
-                    "Error occured processing event: {:?}",
-                    event.response_type()
+                println!(
+                    "Error occurred processing event: {:?} - {:?}",
+                    event.response_type(),
+                    status
                 );
             }
 
