@@ -45,7 +45,6 @@ let config = crate::config::Config {
 - Multithreading (can be useful in certain cases)
 - Status bar
 - EWMH compliant
-- Workspaces
 - Customizable layouts
 
 # Screenshot

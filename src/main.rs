@@ -49,6 +49,8 @@ fn main() {
                 plugins::window_selector::Event::Backward
             )
         ))),
+        // Workspaces
+        Box::new(plugins::load_workspaces_plugin(9)),
     ];
 
     WindowManager::new(config, commands, plugins).run();
