@@ -195,6 +195,7 @@ impl WindowManager {
 
         let client = Client {
             window: event.window(),
+            visible: true,
         };
 
         self.clients.push_front(client);
@@ -239,7 +240,11 @@ impl WindowManager {
     }
 
     fn on_unmap_notify(&mut self, event: &xcb::UnmapNotifyEvent) -> Result<()> {
-        self.remove_window(event.window())?;
+        for client in self.clients.iter_mut() {
+            if client.window == event.window() {
+                client.visible = false;
+            }
+        }
 
         let screen = match self.conn.get_setup().roots().next() {
             Some(s) => s,
