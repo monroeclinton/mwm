@@ -38,9 +38,13 @@ fn resize(
     let border_double = border * 2;
     let gap = border_gap as usize;
     let gap_double = gap * 2;
-    let clients_length = clients.len();
+    let clients_length = clients.iter().filter(|&c| c.visible).count();
 
     for (i, client) in clients.iter().enumerate() {
+        if !client.visible {
+            continue;
+        }
+
         let (mut x, mut y) = (gap, gap);
 
         let (mut width, mut height) = (
