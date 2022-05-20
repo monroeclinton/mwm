@@ -268,10 +268,4 @@ impl WindowManager {
             false
         }
     }
-
-    fn remove_window(&mut self, window: xcb::Window) -> Result<()> {
-        self.clients.retain(|client| client.window != window);
-
-        Ok(())
-    }
 }
