@@ -12,13 +12,6 @@ use std::process::Command;
 use window_manager::WindowManager;
 
 fn main() {
-    let config = crate::config::Config {
-        border_thickness: 2,
-        border_gap: 4,
-        active_border: 0x3b7a82,
-        inactive_border: 0x444444,
-    };
-
     // Create key maps
     let commands = command_map!((
         KeyPair {
@@ -27,6 +20,14 @@ fn main() {
         },
         Box::new(|| Command::new("st"))
     ));
+
+    let config = crate::config::Config {
+        border_thickness: 2,
+        border_gap: 4,
+        active_border: 0x3b7a82,
+        inactive_border: 0x444444,
+        commands,
+    };
 
     // Add plugins
     let plugins: Vec<Box<dyn PluginHandler>> = vec![
@@ -53,5 +54,5 @@ fn main() {
         Box::new(plugins::Workspaces::new(9)),
     ];
 
-    WindowManager::new(config, commands, plugins).run();
+    WindowManager::new(config, plugins).run();
 }

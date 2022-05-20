@@ -1,17 +1,13 @@
 use crate::client::Client;
 use crate::config::Config;
-use crate::key::KeyPair;
 use crate::plugin::{EventContext, InitContext, PluginHandler};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use anyhow::Result;
-
-pub type Command = Box<dyn Fn() -> std::process::Command>;
 
 pub struct WindowManager {
     conn: xcb::Connection,
     clients: VecDeque<Client>,
     plugins: Vec<Box<dyn PluginHandler>>,
-    commands: HashMap<KeyPair, Command>,
     config: Config,
     running: bool,
 }
@@ -19,7 +15,6 @@ pub struct WindowManager {
 impl WindowManager {
     pub fn new(
         config: Config,
-        commands: HashMap<KeyPair, Command>,
         plugins: Vec<Box<dyn PluginHandler>>,
     ) -> Self {
         let (conn, _) = xcb::Connection::connect(None)
@@ -31,7 +26,7 @@ impl WindowManager {
         };
 
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&conn);
-        for pair in commands.keys() {
+        for pair in config.commands.keys() {
             match key_symbols.get_keycode(pair.keysym).next() {
                 Some(keycode) => {
                     xcb::grab_key(
@@ -77,7 +72,6 @@ impl WindowManager {
             conn,
             clients: VecDeque::new(),
             plugins,
-            commands,
             config,
             running: false,
         }
@@ -117,10 +111,10 @@ impl WindowManager {
 
     fn on_key_press(&mut self, event: &xcb::KeyPressEvent) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
-        for pair in self.commands.keys() {
+        for pair in self.config.commands.keys() {
             if let Some(keycode) = key_symbols.get_keycode(pair.keysym).next() {
                 if keycode == event.detail() && pair.modifiers == event.state() {
-                    let command = self.commands.get(pair).unwrap();
+                    let command = self.config.commands.get(pair).unwrap();
                     (*command)().spawn().unwrap();
                 }
             }
