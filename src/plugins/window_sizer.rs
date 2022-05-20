@@ -1,17 +1,17 @@
 use crate::client::Client;
-use crate::plugin::{MapRequestContext, Plugin, PluginHandler};
+use crate::plugin::{MapRequestContext, PluginHandler};
 use std::collections::VecDeque;
 use anyhow::Result;
 
-pub fn load_window_sizer_plugin() -> Plugin<PluginContext> {
-    Plugin {
-        context: PluginContext {},
+pub struct WindowSizer;
+
+impl WindowSizer {
+    pub fn new() -> Self {
+        Self
     }
 }
 
-pub struct PluginContext;
-
-impl PluginHandler for Plugin<PluginContext> {
+impl PluginHandler for WindowSizer {
     fn on_map_request(&mut self, ectx: MapRequestContext) -> Result<()> {
         resize(
             ectx.conn,

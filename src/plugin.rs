@@ -30,7 +30,3 @@ pub trait PluginHandler {
     fn on_enter_notify(&mut self, _: EnterNotifyContext) -> Result<()> { Ok(()) }
     fn on_unmap_notify(&mut self, _: UnmapNotifyContext) -> Result<()> { Ok(()) }
 }
-
-pub struct Plugin<C> {
-    pub context: C,
-}

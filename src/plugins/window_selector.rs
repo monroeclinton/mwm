@@ -1,18 +1,9 @@
 use crate::client::Client;
 use crate::config::Config;
 use crate::key::{KeyPair, grab_key};
-use crate::plugin::{EnterNotifyContext, InitContext, KeyPressContext, Plugin, PluginHandler};
+use crate::plugin::{EnterNotifyContext, InitContext, KeyPressContext, PluginHandler};
 use std::collections::{HashMap, VecDeque};
 use anyhow::{Context, Result};
-
-pub fn load_window_selector_plugin(events: HashMap<KeyPair, Event>) -> Plugin<PluginContext> {
-    Plugin {
-        context: PluginContext {
-            events,
-            active_window: 0,
-        },
-    }
-}
 
 #[macro_export]
 macro_rules! selector_map {
@@ -37,14 +28,23 @@ pub enum Event {
     Backward,
 }
 
-pub struct PluginContext {
+pub struct WindowSelector {
     events: HashMap<KeyPair, Event>,
     active_window: xcb::Window,
 }
 
-impl PluginHandler for Plugin<PluginContext> {
+impl WindowSelector {
+    pub fn new(events: HashMap<KeyPair, Event>) -> Self {
+        Self {
+            events,
+            active_window: 0,
+        }
+    }
+}
+
+impl PluginHandler for WindowSelector {
     fn init(&self, ictx: InitContext) {
-        for pair in self.context.events.keys() {
+        for pair in self.events.keys() {
             grab_key(pair, ictx.conn, ictx.screen.root());
         }
     }
@@ -52,15 +52,15 @@ impl PluginHandler for Plugin<PluginContext> {
     fn on_key_press(&mut self, ectx: KeyPressContext) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(ectx.conn);
 
-        for (pair, event) in self.context.events.iter() {
+        for (pair, event) in self.events.iter() {
             let keycode = key_symbols
                 .get_keycode(pair.keysym)
                 .next()
                 .context("Unknown keycode found in window_selector plugin.")?;
 
             if keycode == ectx.event.detail() && pair.modifiers == ectx.event.state() {
-                if let Some(window) = move_window(&self.context.active_window, event, &ectx)? {
-                    self.context.active_window = window;
+                if let Some(window) = move_window(&self.active_window, event, &ectx)? {
+                    self.active_window = window;
                 }
             }
         }
@@ -69,7 +69,7 @@ impl PluginHandler for Plugin<PluginContext> {
     }
 
     fn on_enter_notify(&mut self, ectx: EnterNotifyContext) -> Result<()> {
-        self.context.active_window = ectx.event.event();
+        self.active_window = ectx.event.event();
         set_active_window(ectx.conn, ectx.config, ectx.clients, ectx.event.event());
         Ok(())
     }
