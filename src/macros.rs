@@ -1,14 +1,9 @@
-#[macro_export]
-macro_rules! command_map {
-    ( $( ($x:expr, $y:expr) ),* ) => {
-        {
-            let mut keys = std::collections::HashMap::<$crate::key::KeyPair, String>::new();
-
-            $(
-                keys.insert($x, $y);
-            )*
-
-            keys
+macro_rules! ignore_results {
+    ( $e:expr ) => {
+        match $e {
+            Ok(_) => (),
+            Err(_) => (),
         }
-    };
+    }
 }
+pub(crate) use ignore_results;
