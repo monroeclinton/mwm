@@ -1,46 +1,68 @@
 use crate::client::Client;
-use crate::config::Config;
-use crate::plugin::{EventContext, InitContext, PluginHandler};
+use crate::config::get_config;
+use crate::event;
+use crate::plugin::EventContext;
+use crate::plugins;
 use std::collections::VecDeque;
+use std::sync::Arc;
+use actix::{Actor, AsyncContext, Handler, Message, StreamHandler, Supervised, SystemService};
 use anyhow::Result;
 
 pub struct WindowManager {
-    conn: xcb::Connection,
+    conn: Arc<xcb::Connection>,
     clients: VecDeque<Client>,
-    plugins: Vec<Box<dyn PluginHandler>>,
-    config: Config,
-    running: bool,
 }
 
 impl WindowManager {
-    pub fn new(
-        config: Config,
-        plugins: Vec<Box<dyn PluginHandler>>,
-    ) -> Self {
+    fn on_key_press(&self, context: EventContext<event::KeyPressEvent>) {
+        plugins::Commands::from_registry().do_send(context.clone());
+    }
+
+    fn on_configure_request(&self, context: EventContext<event::ConfigureRequestEvent>) {
+        plugins::ConfigureWindow::from_registry().do_send(context);
+    }
+
+    fn on_map_request(&self, context: EventContext<event::MapRequestEvent>) {
+        plugins::MapWindow::from_registry().do_send(context.clone());
+        plugins::WindowSizer::from_registry().do_send(context.clone());
+    }
+
+    fn on_enter_notify(&self, _context: EventContext<event::EnterNotifyEvent>) {
+        plugins::WindowSelector::from_registry().do_send(_context.clone());
+    }
+
+    fn on_unmap_notify(&self, _context: EventContext<event::UnmapNotifyEvent>) {
+    }
+}
+
+impl Default for WindowManager {
+    fn default() -> Self {
         let (conn, _) = xcb::Connection::connect(None)
-            .expect("Unable to access your display. Check your DISPLAY enviroment variable.");
+            .expect("Unable to access your display. Check your DISPLAY environment variable.");
 
         let screen = match conn.get_setup().roots().next() {
             Some(s) => s,
             None => panic!("Unable to find a screen."),
         };
 
+        let config = get_config();
+
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&conn);
-        for pair in config.commands.keys() {
-            match key_symbols.get_keycode(pair.keysym).next() {
+        for command in config.commands {
+            match key_symbols.get_keycode(command.keysym).next() {
                 Some(keycode) => {
                     xcb::grab_key(
                         &conn,
                         false,
                         screen.root(),
-                        pair.modifiers,
+                        command.modifier,
                         keycode,
                         xcb::GRAB_MODE_ASYNC as u8,
                         xcb::GRAB_MODE_ASYNC as u8,
                     );
                 }
                 _ => {
-                    dbg!("Failed to find keycode for keysym: {}", pair.keysym);
+                    dbg!("Failed to find keycode for keysym: {}", command.keysym);
                 }
             }
         }
@@ -61,211 +83,97 @@ impl WindowManager {
             }
         }
 
-        for plugin in plugins.iter() {
-            plugin.init(InitContext {
-                conn: &conn,
-                screen: &screen,
-            });
-        }
-
         Self {
-            conn,
+            conn: Arc::new(conn),
             clients: VecDeque::new(),
-            plugins,
-            config,
-            running: false,
         }
     }
+}
 
-    pub fn run(&mut self) {
-        self.running = true;
+impl Actor for WindowManager {
+    type Context = actix::Context<Self>;
 
-        while self.running {
-            let event = match self.conn.wait_for_event() {
-                Some(e) => e,
-                _ => continue,
+    fn started(&mut self, ctx: &mut actix::Context<Self>) {
+        let events = futures::stream::unfold(Arc::clone(&self.conn), |c| async move {
+            let conn = Arc::clone(&c);
+            let event = tokio::task::spawn_blocking(move || {
+                conn.wait_for_event()
+            }).await.unwrap();
+
+            Some((event, c))
+        });
+
+        ctx.add_stream(events);
+    }
+}
+
+impl Supervised for WindowManager {}
+impl SystemService for WindowManager {}
+
+impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
+    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut actix::Context<Self>) {
+        if let Some(e) = event {
+            match e.response_type() {
+                xcb::KEY_PRESS => self.on_key_press(EventContext {
+                    conn: Arc::clone(&self.conn),
+                    event: event::KeyPressEvent::from(unsafe { xcb::cast_event(&e) }),
+                }),
+                xcb::CONFIGURE_REQUEST => self.on_configure_request(EventContext {
+                    conn: Arc::clone(&self.conn),
+                    event: event::ConfigureRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                }),
+                xcb::MAP_REQUEST => self.on_map_request(EventContext {
+                    conn: Arc::clone(&self.conn),
+                    event: event::MapRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                }),
+                xcb::ENTER_NOTIFY => self.on_enter_notify(EventContext {
+                    conn: Arc::clone(&self.conn),
+                    event: event::EnterNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                }),
+                xcb::UNMAP_NOTIFY => self.on_unmap_notify(EventContext {
+                    conn: Arc::clone(&self.conn),
+                    event: event::UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                }),
+                // Events we do not care about
+                _ => (),
             };
-
-            let status = match event.response_type() {
-                xcb::KEY_PRESS => self.on_key_press(unsafe { xcb::cast_event(&event) }),
-                xcb::CONFIGURE_REQUEST => {
-                    self.on_configure_request(unsafe { xcb::cast_event(&event) })
-                }
-                xcb::MAP_REQUEST => self.on_map_request(unsafe { xcb::cast_event(&event) }),
-                xcb::ENTER_NOTIFY => self.on_enter_notify(unsafe { xcb::cast_event(&event) }),
-                xcb::UNMAP_NOTIFY => self.on_unmap_notify(unsafe { xcb::cast_event(&event) }),
-                _ => continue,
-            };
-
-            if status.is_err() {
-                println!(
-                    "Error occurred processing event: {:?} - {:?}",
-                    event.response_type(),
-                    status
-                );
-            }
-
-            self.conn.flush();
         }
+
+        self.conn.flush();
     }
+}
 
-    fn on_key_press(&mut self, event: &xcb::KeyPressEvent) -> Result<()> {
-        let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
-        for pair in self.config.commands.keys() {
-            if let Some(keycode) = key_symbols.get_keycode(pair.keysym).next() {
-                if keycode == event.detail() && pair.modifiers == event.state() {
-                    let command = self.config.commands.get(pair).unwrap();
-                    (*command)().spawn().unwrap();
-                }
-            }
-        }
+pub struct CreateClient {
+    pub window: xcb::Window,
+}
 
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
+impl Message for CreateClient {
+    type Result = Result<()>;
+}
 
-        for plugin in self.plugins.iter_mut() {
-            plugin.on_key_press(EventContext {
-                conn: &self.conn,
-                clients: &self.clients,
-                config: &self.config,
-                screen: &screen,
-                event,
-            })?;
-        }
+impl Handler<CreateClient> for WindowManager {
+    type Result = Result<()>;
 
-        Ok(())
-    }
-
-    fn on_configure_request(&mut self, event: &xcb::ConfigureRequestEvent) -> Result<()> {
-        let values = vec![
-            (xcb::CONFIG_WINDOW_X as u16, event.x() as u32),
-            (xcb::CONFIG_WINDOW_Y as u16, event.y() as u32),
-            (xcb::CONFIG_WINDOW_WIDTH as u16, event.width() as u32),
-            (xcb::CONFIG_WINDOW_HEIGHT as u16, event.height() as u32),
-            (
-                xcb::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                event.border_width() as u32,
-            ),
-            (xcb::CONFIG_WINDOW_SIBLING as u16, event.sibling() as u32), // Default: NONE
-            (
-                xcb::CONFIG_WINDOW_STACK_MODE as u16,
-                event.stack_mode() as u32,
-            ), // Default: STACK_MODE_ABOVE
-        ];
-
-        xcb::configure_window(&self.conn, event.window(), &values);
-
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
-
-        for plugin in self.plugins.iter_mut() {
-            plugin.on_configure_request(EventContext {
-                conn: &self.conn,
-                clients: &self.clients,
-                config: &self.config,
-                screen: &screen,
-                event,
-            })?;
-        }
-
-        Ok(())
-    }
-
-    fn on_map_request(&mut self, event: &xcb::MapRequestEvent) -> Result<()> {
-        if self.has_override_redirect(event.window()) {
-            return Ok(());
-        }
-
-        if self.clients.iter().any(|c| c.window == event.window()) {
-            return Ok(());
-        }
-
-        let values = [(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_ENTER_WINDOW)];
-
-        xcb::change_window_attributes(&self.conn, event.window(), &values);
-
-        let client = Client {
-            window: event.window(),
+    fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
+        self.clients.push_front(Client {
+            window: msg.window,
             visible: true,
-        };
-
-        self.clients.push_front(client);
-
-        xcb::map_window(&self.conn, event.window());
-
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
-
-        for plugin in self.plugins.iter_mut() {
-            plugin.on_map_request(EventContext {
-                conn: &self.conn,
-                clients: &self.clients,
-                config: &self.config,
-                screen: &screen,
-                event,
-            })?;
-        }
+        });
 
         Ok(())
     }
+}
 
-    fn on_enter_notify(&mut self, event: &xcb::EnterNotifyEvent) -> Result<()> {
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
+pub struct GetClients;
 
-        for plugin in self.plugins.iter_mut() {
-            plugin.on_enter_notify(EventContext {
-                conn: &self.conn,
-                clients: &self.clients,
-                config: &self.config,
-                screen: &screen,
-                event,
-            })?;
-        }
+impl Message for GetClients {
+    type Result = Result<VecDeque<Client>>;
+}
 
-        Ok(())
-    }
+impl Handler<GetClients> for WindowManager {
+    type Result = Result<VecDeque<Client>>;
 
-    fn on_unmap_notify(&mut self, event: &xcb::UnmapNotifyEvent) -> Result<()> {
-        for client in self.clients.iter_mut() {
-            if client.window == event.window() {
-                client.visible = false;
-            }
-        }
-
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
-
-        for plugin in self.plugins.iter_mut() {
-            plugin.on_unmap_notify(EventContext {
-                conn: &self.conn,
-                clients: &self.clients,
-                config: &self.config,
-                screen: &screen,
-                event,
-            })?;
-        }
-
-        Ok(())
-    }
-
-    fn has_override_redirect(&self, window: xcb::Window) -> bool {
-        let cookie = xcb::get_window_attributes(&self.conn, window);
-
-        if let Ok(attrs) = cookie.get_reply() {
-            attrs.override_redirect()
-        } else {
-            false
-        }
+    fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
+        Ok(self.clients.clone())
     }
 }

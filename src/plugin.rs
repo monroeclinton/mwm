@@ -1,32 +1,40 @@
-use crate::client::Client;
-use crate::config::Config;
-use std::collections::VecDeque;
+use crate::event;
+use std::sync::Arc;
+use actix::Message;
 use anyhow::Result;
 
-pub struct InitContext<'a> {
-    pub conn: &'a xcb::Connection,
-    pub screen: &'a xcb::Screen<'a>,
-}
-
-pub struct EventContext<'a, E> {
-    pub conn: &'a xcb::Connection,
-    pub clients: &'a VecDeque<Client>,
-    pub screen: &'a xcb::Screen<'a>,
-    pub config: &'a Config,
+#[derive(Clone)]
+pub struct EventContext<E> {
+    pub conn: Arc<xcb::Connection>,
     pub event: E,
 }
 
-pub type KeyPressContext<'a> = EventContext<'a, &'a xcb::KeyPressEvent>;
-pub type ConfigureRequestContext<'a> = EventContext<'a, &'a xcb::ConfigureRequestEvent>;
-pub type MapRequestContext<'a> = EventContext<'a, &'a xcb::MapRequestEvent>;
-pub type EnterNotifyContext<'a> = EventContext<'a, &'a xcb::EnterNotifyEvent>;
-pub type UnmapNotifyContext<'a> = EventContext<'a, &'a xcb::UnmapNotifyEvent>;
+pub type KeyPressContext = EventContext<event::KeyPressEvent>;
 
-pub trait PluginHandler {
-    fn init(&self, _: InitContext) {}
-    fn on_key_press(&mut self, _: KeyPressContext) -> Result<()> { Ok(()) }
-    fn on_configure_request(&mut self, _: ConfigureRequestContext) -> Result<()> { Ok(()) }
-    fn on_map_request(&mut self, _: MapRequestContext) -> Result<()> { Ok(()) }
-    fn on_enter_notify(&mut self, _: EnterNotifyContext) -> Result<()> { Ok(()) }
-    fn on_unmap_notify(&mut self, _: UnmapNotifyContext) -> Result<()> { Ok(()) }
+impl Message for KeyPressContext {
+    type Result = Result<()>;
+}
+
+pub type ConfigureRequestContext = EventContext<event::ConfigureRequestEvent>;
+
+impl Message for ConfigureRequestContext {
+    type Result = Result<()>;
+}
+
+pub type MapRequestContext = EventContext<event::MapRequestEvent>;
+
+impl Message for MapRequestContext {
+    type Result = Result<()>;
+}
+
+pub type EnterNotifyContext = EventContext<event::EnterNotifyEvent>;
+
+impl Message for EnterNotifyContext {
+    type Result = Result<()>;
+}
+
+pub type UnmapNotifyContext = EventContext<event::UnmapNotifyEvent>;
+
+impl Message for UnmapNotifyContext {
+    type Result = Result<()>;
 }

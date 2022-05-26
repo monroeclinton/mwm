@@ -2,8 +2,7 @@
 macro_rules! command_map {
     ( $( ($x:expr, $y:expr) ),* ) => {
         {
-
-            let mut keys = std::collections::HashMap::<$crate::key::KeyPair, $crate::config::Command>::new();
+            let mut keys = std::collections::HashMap::<$crate::key::KeyPair, String>::new();
 
             $(
                 keys.insert($x, $y);

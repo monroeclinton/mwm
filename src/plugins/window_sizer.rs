@@ -1,29 +1,56 @@
+use crate::config::get_config;
 use crate::client::Client;
-use crate::plugin::{MapRequestContext, PluginHandler};
+use crate::plugin::MapRequestContext;
+use crate::window_manager::{GetClients, WindowManager};
 use std::collections::VecDeque;
+use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService};
 use anyhow::Result;
 
+#[derive(Default)]
 pub struct WindowSizer;
 
-impl WindowSizer {
-    pub fn new() -> Self {
-        Self
+impl Actor for WindowSizer {
+    type Context = Context<Self>;
+}
+
+impl Supervised for WindowSizer {}
+impl SystemService for WindowSizer {}
+
+impl Handler<MapRequestContext> for WindowSizer {
+    type Result = ResponseActFuture<Self, Result<()>>;
+
+    fn handle(&mut self, ectx: MapRequestContext, _ctx: &mut Self::Context) -> Self::Result {
+        let config = get_config();
+        let clients = actix::fut::wrap_future::<_, Self>(get_clients());
+
+        let handle_clients = clients.map(move |result, _actor, _ctx| {
+            let screen = match ectx.conn.get_setup().roots().next() {
+                Some(s) => s,
+                None => panic!("Unable to find a screen."),
+            };
+
+            let clients = result?;
+
+            resize(
+                &ectx.conn,
+                &clients,
+                screen.width_in_pixels() as usize,
+                screen.height_in_pixels() as usize,
+                config.border_thickness,
+                config.border_gap,
+            );
+
+            Ok(())
+        });
+
+        Box::pin(handle_clients)
     }
 }
 
-impl PluginHandler for WindowSizer {
-    fn on_map_request(&mut self, ectx: MapRequestContext) -> Result<()> {
-        resize(
-            ectx.conn,
-            ectx.clients,
-            ectx.screen.width_in_pixels() as usize,
-            ectx.screen.height_in_pixels() as usize,
-            ectx.config.border_thickness,
-            ectx.config.border_gap,
-        );
-
-        Ok(())
-    }
+async fn get_clients() -> Result<VecDeque<Client>> {
+    WindowManager::from_registry()
+        .send(GetClients)
+        .await?
 }
 
 fn resize(
