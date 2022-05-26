@@ -1,5 +1,5 @@
+use crate::client::{Clients, CreateClient};
 use crate::event::{EventContext, MapRequestEvent};
-use crate::window_manager::{CreateClient, WindowManager};
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
 
@@ -27,7 +27,7 @@ impl Handler<EventContext<MapRequestEvent>> for MapWindow {
 
         xcb::map_window(&ectx.conn, ectx.event.window);
 
-        WindowManager::from_registry().do_send(CreateClient {
+        Clients::from_registry().do_send(CreateClient {
             window: ectx.event.window,
         });
 

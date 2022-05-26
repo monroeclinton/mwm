@@ -1,18 +1,14 @@
-use crate::client::Client;
 use crate::config::get_config;
 use crate::event::{
     EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent,
     EnterNotifyEvent, UnmapNotifyEvent
 };
 use crate::listeners;
-use std::collections::VecDeque;
 use std::sync::Arc;
-use actix::{Actor, AsyncContext, Handler, Message, StreamHandler, Supervised, SystemService};
-use anyhow::Result;
+use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
     conn: Arc<xcb::Connection>,
-    clients: VecDeque<Client>,
 }
 
 impl Default for WindowManager {
@@ -65,7 +61,6 @@ impl Default for WindowManager {
 
         Self {
             conn: Arc::new(conn),
-            clients: VecDeque::new(),
         }
     }
 }
@@ -74,8 +69,8 @@ impl Actor for WindowManager {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut actix::Context<Self>) {
-        let events = futures::stream::unfold(Arc::clone(&self.conn), |c| async move {
-            let conn = Arc::clone(&c);
+        let events = futures::stream::unfold(self.conn.clone(), |c| async move {
+            let conn = c.clone();
             let event = tokio::task::spawn_blocking(move || {
                 conn.wait_for_event()
             }).await.unwrap();
@@ -124,40 +119,5 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                 conn.flush();
             });
         }
-    }
-}
-
-pub struct CreateClient {
-    pub window: xcb::Window,
-}
-
-impl Message for CreateClient {
-    type Result = Result<()>;
-}
-
-impl Handler<CreateClient> for WindowManager {
-    type Result = Result<()>;
-
-    fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
-        self.clients.push_front(Client {
-            window: msg.window,
-            visible: true,
-        });
-
-        Ok(())
-    }
-}
-
-pub struct GetClients;
-
-impl Message for GetClients {
-    type Result = Result<VecDeque<Client>>;
-}
-
-impl Handler<GetClients> for WindowManager {
-    type Result = Result<VecDeque<Client>>;
-
-    fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
-        Ok(self.clients.clone())
     }
 }

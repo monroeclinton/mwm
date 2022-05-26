@@ -1,7 +1,6 @@
 use crate::config::{Config, get_config};
-use crate::client::Client;
+use crate::client::{Client, Clients, GetClients};
 use crate::event::{EventContext, EnterNotifyEvent};
-use crate::window_manager::{GetClients, WindowManager};
 use std::collections::VecDeque;
 use actix::{Actor, ActorFutureExt, Handler, ResponseActFuture, Supervised, SystemService};
 use anyhow::Result;
@@ -52,7 +51,7 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
 }
 
 async fn get_clients() -> Result<VecDeque<Client>> {
-    WindowManager::from_registry()
+    Clients::from_registry()
         .send(GetClients)
         .await?
 }
