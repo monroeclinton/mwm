@@ -1,6 +1,6 @@
 use crate::config::get_config;
 use crate::client::Client;
-use crate::plugin::MapRequestContext;
+use crate::event::{EventContext, MapRequestEvent};
 use crate::window_manager::{GetClients, WindowManager};
 use std::collections::VecDeque;
 use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService};
@@ -16,10 +16,10 @@ impl Actor for WindowSizer {
 impl Supervised for WindowSizer {}
 impl SystemService for WindowSizer {}
 
-impl Handler<MapRequestContext> for WindowSizer {
+impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: MapRequestContext, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
         let config = get_config();
         let clients = actix::fut::wrap_future::<_, Self>(get_clients());
 

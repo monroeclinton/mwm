@@ -1,3 +1,14 @@
+use std::sync::Arc;
+use actix::prelude::*;
+use anyhow::Result;
+
+#[derive(Clone, Message)]
+#[rtype(result = "Result<()>")]
+pub struct EventContext<E> {
+    pub conn: Arc<xcb::Connection>,
+    pub event: E,
+}
+
 #[derive(Clone)]
 pub struct KeyPressEvent {
     pub keycode: xcb::Keycode,

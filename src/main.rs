@@ -2,8 +2,8 @@ mod client;
 mod config;
 mod event;
 mod key;
+mod listeners;
 mod macros;
-mod plugin;
 mod plugins;
 mod window_manager;
 

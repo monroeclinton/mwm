@@ -1,4 +1,4 @@
-use crate::plugin::ConfigureRequestContext;
+use crate::event::{EventContext, ConfigureRequestEvent};
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
 
@@ -12,10 +12,10 @@ impl Actor for ConfigureWindow {
 impl Supervised for ConfigureWindow {}
 impl SystemService for ConfigureWindow {}
 
-impl Handler<ConfigureRequestContext> for ConfigureWindow {
+impl Handler<EventContext<ConfigureRequestEvent>> for ConfigureWindow {
     type Result = Result<()>;
 
-    fn handle(&mut self, ectx: ConfigureRequestContext, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<ConfigureRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         let values = vec![
             (xcb::CONFIG_WINDOW_X as u16, ectx.event.upper_left_x as u32),
             (xcb::CONFIG_WINDOW_Y as u16, ectx.event.upper_left_y as u32),

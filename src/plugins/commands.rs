@@ -1,5 +1,5 @@
 use crate::config::get_config;
-use crate::plugin::KeyPressContext;
+use crate::event::{EventContext, KeyPressEvent};
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
 
@@ -13,10 +13,10 @@ impl Actor for Commands {
 impl Supervised for Commands {}
 impl SystemService for Commands {}
 
-impl Handler<KeyPressContext> for Commands {
+impl Handler<EventContext<KeyPressEvent>> for Commands {
     type Result = Result<()>;
 
-    fn handle(&mut self, ectx: KeyPressContext, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<KeyPressEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
         let config = get_config();
         for command in config.commands {

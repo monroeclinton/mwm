@@ -1,8 +1,10 @@
 use crate::client::Client;
 use crate::config::get_config;
-use crate::event;
-use crate::plugin::EventContext;
-use crate::plugins;
+use crate::event::{
+    EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent,
+    EnterNotifyEvent, UnmapNotifyEvent
+};
+use crate::listeners;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use actix::{Actor, AsyncContext, Handler, Message, StreamHandler, Supervised, SystemService};
@@ -11,28 +13,6 @@ use anyhow::Result;
 pub struct WindowManager {
     conn: Arc<xcb::Connection>,
     clients: VecDeque<Client>,
-}
-
-impl WindowManager {
-    fn on_key_press(&self, context: EventContext<event::KeyPressEvent>) {
-        plugins::Commands::from_registry().do_send(context.clone());
-    }
-
-    fn on_configure_request(&self, context: EventContext<event::ConfigureRequestEvent>) {
-        plugins::ConfigureWindow::from_registry().do_send(context);
-    }
-
-    fn on_map_request(&self, context: EventContext<event::MapRequestEvent>) {
-        plugins::MapWindow::from_registry().do_send(context.clone());
-        plugins::WindowSizer::from_registry().do_send(context.clone());
-    }
-
-    fn on_enter_notify(&self, _context: EventContext<event::EnterNotifyEvent>) {
-        plugins::WindowSelector::from_registry().do_send(_context.clone());
-    }
-
-    fn on_unmap_notify(&self, _context: EventContext<event::UnmapNotifyEvent>) {
-    }
 }
 
 impl Default for WindowManager {
@@ -113,33 +93,37 @@ impl SystemService for WindowManager {}
 impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
     fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut actix::Context<Self>) {
         if let Some(e) = event {
-            match e.response_type() {
-                xcb::KEY_PRESS => self.on_key_press(EventContext {
-                    conn: Arc::clone(&self.conn),
-                    event: event::KeyPressEvent::from(unsafe { xcb::cast_event(&e) }),
-                }),
-                xcb::CONFIGURE_REQUEST => self.on_configure_request(EventContext {
-                    conn: Arc::clone(&self.conn),
-                    event: event::ConfigureRequestEvent::from(unsafe { xcb::cast_event(&e) }),
-                }),
-                xcb::MAP_REQUEST => self.on_map_request(EventContext {
-                    conn: Arc::clone(&self.conn),
-                    event: event::MapRequestEvent::from(unsafe { xcb::cast_event(&e) }),
-                }),
-                xcb::ENTER_NOTIFY => self.on_enter_notify(EventContext {
-                    conn: Arc::clone(&self.conn),
-                    event: event::EnterNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
-                }),
-                xcb::UNMAP_NOTIFY => self.on_unmap_notify(EventContext {
-                    conn: Arc::clone(&self.conn),
-                    event: event::UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
-                }),
-                // Events we do not care about
-                _ => (),
-            };
-        }
+            let conn = self.conn.clone();
 
-        self.conn.flush();
+            actix::spawn(async move {
+                match e.response_type() {
+                    xcb::KEY_PRESS => listeners::on_key_press(EventContext {
+                        conn: conn.clone(),
+                        event: KeyPressEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
+                        conn: conn.clone(),
+                        event: ConfigureRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
+                        conn: conn.clone(),
+                        event: MapRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
+                        conn: conn.clone(),
+                        event: EnterNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
+                        conn: conn.clone(),
+                        event: UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    // Events we do not care about
+                    _ => (),
+                };
+
+                conn.flush();
+            });
+        }
     }
 }
 

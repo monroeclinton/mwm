@@ -1,7 +1,7 @@
-use crate::plugin::MapRequestContext;
+use crate::event::{EventContext, MapRequestEvent};
+use crate::window_manager::{CreateClient, WindowManager};
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
-use crate::window_manager::{CreateClient, WindowManager};
 
 #[derive(Default)]
 pub struct MapWindow;
@@ -13,10 +13,10 @@ impl Actor for MapWindow {
 impl Supervised for MapWindow {}
 impl SystemService for MapWindow {}
 
-impl Handler<MapRequestContext> for MapWindow {
+impl Handler<EventContext<MapRequestEvent>> for MapWindow {
     type Result = Result<()>;
 
-    fn handle(&mut self, ectx: MapRequestContext, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         if has_override_redirect(&ectx.conn, ectx.event.window) {
             return Ok(());
         }

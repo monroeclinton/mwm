@@ -1,6 +1,6 @@
 use crate::config::{Config, get_config};
 use crate::client::Client;
-use crate::plugin::EnterNotifyContext;
+use crate::event::{EventContext, EnterNotifyEvent};
 use crate::window_manager::{GetClients, WindowManager};
 use std::collections::VecDeque;
 use actix::{Actor, ActorFutureExt, Handler, ResponseActFuture, Supervised, SystemService};
@@ -25,10 +25,10 @@ impl Actor for WindowSelector {
 impl Supervised for WindowSelector {}
 impl SystemService for WindowSelector {}
 
-impl Handler<EnterNotifyContext> for WindowSelector {
+impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: EnterNotifyContext, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
         self.active_window = ectx.event.window;
 
         let config = get_config();
