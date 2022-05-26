@@ -13,32 +13,26 @@ exec mwm
 
 # Configuring
 
-In the `main.rs` file edit the config struct.
-```rust
-let config = crate::config::Config {
-    // Map commands to keypress
-    commands: key_map!(
-        (
-            KeyPair { // If press alt-p then open st (suckless.org simple terminal)
-                modifiers: xcb::MOD_MASK_1 as u16,
-                keysym: x11::keysym::XK_p,
-            },
-            Handler {
-                command: Some(Box::new(|| Command::new("st"))),
-                event: None,
-            }
-        )
-    ),
-    // Load plugins
-    plugins: vec![
-        Box::new(plugins::load_window_mapper_plugin()),
-    ],
-    // Border config
-    border_thickness: 2,
-    border_gap: 4,
-    active_border: 0x3b7a82,
-    inactive_border: 0x444444,
-};
+Edit the `config.toml`:
+```toml
+# Border thickness
+border_thickness = 2
+
+# Space between windows
+border_gap = 4
+
+# Color of border around windows when active
+active_border = 0x3b7a82
+
+# Color of border around windows when inactive
+inactive_border = 0x444444
+
+# List of commands
+[[commands]]
+modifier = 0x0008 # key: l-alt
+keysym = 0x0070 # key: p
+command = "st"
+
 ```
 
 # Planned features
