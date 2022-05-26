@@ -54,3 +54,11 @@ impl Handler<GetClients> for Clients {
         Ok(self.clients.clone())
     }
 }
+
+
+pub async fn get_clients() -> Result<VecDeque<Client>> {
+    Clients::from_registry()
+        .send(GetClients)
+        .await?
+}
+

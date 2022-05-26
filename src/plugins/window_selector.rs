@@ -1,5 +1,5 @@
 use crate::config::{Config, get_config};
-use crate::client::{Client, Clients, GetClients};
+use crate::client::{Client, get_clients};
 use crate::event::{EventContext, EnterNotifyEvent};
 use std::collections::VecDeque;
 use actix::{Actor, ActorFutureExt, Handler, ResponseActFuture, Supervised, SystemService};
@@ -48,12 +48,6 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
 
         Box::pin(handle_enter)
     }
-}
-
-async fn get_clients() -> Result<VecDeque<Client>> {
-    Clients::from_registry()
-        .send(GetClients)
-        .await?
 }
 
 fn set_active_window(

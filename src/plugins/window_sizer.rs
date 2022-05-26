@@ -1,5 +1,5 @@
 use crate::config::get_config;
-use crate::client::{Client, Clients, GetClients};
+use crate::client::{Client, get_clients};
 use crate::event::{EventContext, MapRequestEvent};
 use std::collections::VecDeque;
 use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService};
@@ -44,12 +44,6 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
 
         Box::pin(handle_clients)
     }
-}
-
-async fn get_clients() -> Result<VecDeque<Client>> {
-    Clients::from_registry()
-        .send(GetClients)
-        .await?
 }
 
 fn resize(
