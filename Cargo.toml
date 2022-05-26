@@ -6,7 +6,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix = "0.13.0"
 anyhow = "1.0.56"
+futures = "0.3.21"
+serde = { version = "1.0.137", features = ["derive"] }
+tokio = { version = "1.18.2", features = ["full"] }
+toml = "0.5.9"
 x11 = "2.19.1"
 xcb = { version = "0.10.1", features = ["xkb"] }
-xcb-util = { version = "0.4.0", features = ["keysyms"] }
+xcb-util = { version = "0.4.0", features = ["keysyms", "thread"] }
