@@ -21,8 +21,6 @@ pub fn get_config() -> Config {
     let toml_string = fs::read_to_string("config.toml")
         .expect("Unable to read config.toml file.");
 
-    let config = toml::from_str(&toml_string)
-        .expect("Unable to parse toml config.");
-
-    config
+    toml::from_str(&toml_string)
+        .expect("Unable to parse toml config.")
 }
