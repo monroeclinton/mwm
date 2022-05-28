@@ -8,7 +8,7 @@ mod window_manager;
 
 use actix::SystemService;
 use window_manager::WindowManager;
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 fn main() -> Result<()> {
     let sys = actix::System::new();
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         WindowManager::from_registry();
     });
 
-    sys.run().context("Failed to start mwm.")?;
+    sys.run().expect("Failed to start mwm.");
 
     Ok(())
 }

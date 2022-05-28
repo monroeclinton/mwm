@@ -23,10 +23,8 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
         let handle_clients = clients.map(move |result, _actor, _ctx| {
             let clients = result?;
 
-            let screen = match ectx.conn.get_setup().roots().next() {
-                Some(s) => s,
-                None => panic!("Unable to find a screen."),
-            };
+            let screen = ectx.conn.get_setup().roots().next()
+                .expect("Unable to find a screen.");
 
             resize(
                 &ectx.conn,

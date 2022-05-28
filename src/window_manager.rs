@@ -28,10 +28,8 @@ impl Actor for WindowManager {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut actix::Context<Self>) {
-        let screen = match self.conn.get_setup().roots().next() {
-            Some(s) => s,
-            None => panic!("Unable to find a screen."),
-        };
+        let screen = self.conn.get_setup().roots().next()
+            .expect("Unable to find a screen.");
 
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
         for command in &self.config.commands {
