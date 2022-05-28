@@ -51,8 +51,6 @@ impl Actor for WindowManager {
             }
         }
 
-        drop(key_symbols);
-
         let values = [(
             xcb::CW_EVENT_MASK,
             xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT | xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY,
