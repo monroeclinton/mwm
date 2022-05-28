@@ -55,10 +55,8 @@ impl Handler<GetClients> for Clients {
     }
 }
 
-
 pub async fn get_clients() -> Result<VecDeque<Client>> {
     Clients::from_registry()
         .send(GetClients)
         .await?
 }
-
