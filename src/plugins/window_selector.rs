@@ -1,4 +1,4 @@
-use crate::config::{Config, get_config};
+use crate::config::Config;
 use crate::client::{Client, get_clients};
 use crate::event::{EventContext, EnterNotifyEvent};
 use std::collections::VecDeque;
@@ -30,7 +30,6 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
     fn handle(&mut self, ectx: EventContext<EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
         self.active_window = ectx.event.window;
 
-        let config = get_config();
         let clients = actix::fut::wrap_future::<_, Self>(get_clients());
 
         let handle_enter = clients.map(move |result, _actor, _ctx| {
@@ -38,7 +37,7 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
 
             set_active_window(
                 &ectx.conn,
-                &config,
+                &ectx.config,
                 &clients,
                 ectx.event.window
             );

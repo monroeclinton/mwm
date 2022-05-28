@@ -1,4 +1,4 @@
-use crate::config::get_config;
+use crate::config::{Config, get_config};
 use crate::event::{
     EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent,
     EnterNotifyEvent, UnmapNotifyEvent
@@ -8,6 +8,7 @@ use std::sync::Arc;
 use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
+    config: Config,
     conn: Arc<xcb::Connection>,
 }
 
@@ -16,19 +17,28 @@ impl Default for WindowManager {
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY environment variable.");
 
-        let screen = match conn.get_setup().roots().next() {
+        Self {
+            config: get_config(),
+            conn: Arc::new(conn),
+        }
+    }
+}
+
+impl Actor for WindowManager {
+    type Context = actix::Context<Self>;
+
+    fn started(&mut self, ctx: &mut actix::Context<Self>) {
+        let screen = match self.conn.get_setup().roots().next() {
             Some(s) => s,
             None => panic!("Unable to find a screen."),
         };
 
-        let config = get_config();
-
-        let key_symbols = xcb_util::keysyms::KeySymbols::new(&conn);
-        for command in config.commands {
+        let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
+        for command in &self.config.commands {
             match key_symbols.get_keycode(command.keysym).next() {
                 Some(keycode) => {
                     xcb::grab_key(
-                        &conn,
+                        &self.conn,
                         false,
                         screen.root(),
                         command.modifier,
@@ -50,25 +60,12 @@ impl Default for WindowManager {
             xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT | xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY,
         )];
 
-        let cookie = xcb::change_window_attributes_checked(&conn, screen.root(), &values);
+        let cookie = xcb::change_window_attributes_checked(&self.conn, screen.root(), &values);
 
-        match cookie.request_check() {
-            Ok(_) => (),
-            Err(_) => {
-                panic!("Unable to change window attributes. Is another window manager running?")
-            }
+        if cookie.request_check().is_err() {
+            panic!("Unable to change window attributes. Is another window manager running?")
         }
 
-        Self {
-            conn: Arc::new(conn),
-        }
-    }
-}
-
-impl Actor for WindowManager {
-    type Context = actix::Context<Self>;
-
-    fn started(&mut self, ctx: &mut actix::Context<Self>) {
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
             let conn = c.clone();
             let event = tokio::task::spawn_blocking(move || {
@@ -88,27 +85,33 @@ impl SystemService for WindowManager {}
 impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
     fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut actix::Context<Self>) {
         if let Some(e) = event {
+            let config = self.config.clone();
             let conn = self.conn.clone();
 
             actix::spawn(async move {
                 match e.response_type() {
                     xcb::KEY_PRESS => listeners::on_key_press(EventContext {
+                        config,
                         conn: conn.clone(),
                         event: KeyPressEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,
                     xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
+                        config,
                         conn: conn.clone(),
                         event: ConfigureRequestEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,
                     xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
+                        config,
                         conn: conn.clone(),
                         event: MapRequestEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,
                     xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
+                        config,
                         conn: conn.clone(),
                         event: EnterNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,
                     xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
+                        config,
                         conn: conn.clone(),
                         event: UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,

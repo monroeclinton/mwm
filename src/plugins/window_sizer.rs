@@ -1,4 +1,3 @@
-use crate::config::get_config;
 use crate::client::{Client, get_clients};
 use crate::event::{EventContext, MapRequestEvent};
 use std::collections::VecDeque;
@@ -19,24 +18,23 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        let config = get_config();
         let clients = actix::fut::wrap_future::<_, Self>(get_clients());
 
         let handle_clients = clients.map(move |result, _actor, _ctx| {
+            let clients = result?;
+
             let screen = match ectx.conn.get_setup().roots().next() {
                 Some(s) => s,
                 None => panic!("Unable to find a screen."),
             };
-
-            let clients = result?;
 
             resize(
                 &ectx.conn,
                 &clients,
                 screen.width_in_pixels() as usize,
                 screen.height_in_pixels() as usize,
-                config.border_thickness,
-                config.border_gap,
+                ectx.config.border_thickness,
+                ectx.config.border_gap,
             );
 
             Ok(())

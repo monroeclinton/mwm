@@ -1,3 +1,4 @@
+use crate::config::Config;
 use std::sync::Arc;
 use actix::prelude::*;
 use anyhow::Result;
@@ -5,6 +6,7 @@ use anyhow::Result;
 #[derive(Clone, Message)]
 #[rtype(result = "Result<()>")]
 pub struct EventContext<E> {
+    pub config: Config,
     pub conn: Arc<xcb::Connection>,
     pub event: E,
 }
