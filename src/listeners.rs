@@ -8,6 +8,7 @@ use actix::SystemService;
 
 pub async fn on_key_press(context: EventContext<KeyPressEvent>) {
     ignore_results!(plugins::Commands::from_registry().send(context.clone()).await);
+    ignore_results!(plugins::WindowSelector::from_registry().send(context.clone()).await);
 }
 
 pub async fn on_configure_request(context: EventContext<ConfigureRequestEvent>) {

@@ -3,6 +3,7 @@ use crate::event::{
     EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent,
     EnterNotifyEvent, UnmapNotifyEvent
 };
+use crate::key::grab_key;
 use crate::listeners;
 use std::sync::Arc;
 use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
@@ -31,24 +32,12 @@ impl Actor for WindowManager {
         let screen = self.conn.get_setup().roots().next()
             .expect("Unable to find a screen.");
 
-        let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
         for command in &self.config.commands {
-            match key_symbols.get_keycode(command.keysym).next() {
-                Some(keycode) => {
-                    xcb::grab_key(
-                        &self.conn,
-                        false,
-                        screen.root(),
-                        command.modifier,
-                        keycode,
-                        xcb::GRAB_MODE_ASYNC as u8,
-                        xcb::GRAB_MODE_ASYNC as u8,
-                    );
-                }
-                _ => {
-                    dbg!("Failed to find keycode for keysym: {}", command.keysym);
-                }
-            }
+            grab_key(&self.conn, command.modifier, command.keysym, screen.root());
+        }
+
+        for action in &self.config.actions {
+            grab_key(&self.conn, action.modifier, action.keysym, screen.root());
         }
 
         let values = [(
