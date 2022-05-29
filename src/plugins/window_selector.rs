@@ -1,8 +1,7 @@
 use crate::config::Config;
-use crate::client::{Client, get_clients};
+use crate::client::{Client, Clients, GetClients};
 use crate::event::{EventContext, EnterNotifyEvent};
-use std::collections::VecDeque;
-use actix::{Actor, ActorFutureExt, Handler, ResponseActFuture, Supervised, SystemService};
+use actix::{Actor, ActorFutureExt, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
 pub struct WindowSelector {
@@ -30,29 +29,29 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
     fn handle(&mut self, ectx: EventContext<EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
         self.active_window = ectx.event.window;
 
-        let clients = actix::fut::wrap_future::<_, Self>(get_clients());
+        Clients::from_registry()
+            .send(GetClients)
+            .into_actor(self)
+            .map(move |result, _actor, _ctx| {
+                let clients = result?;
 
-        let handle_enter = clients.map(move |result, _actor, _ctx| {
-            let clients = result?;
+                set_active_window(
+                    &ectx.conn,
+                    &ectx.config,
+                    &clients,
+                    ectx.event.window
+                );
 
-            set_active_window(
-                &ectx.conn,
-                &ectx.config,
-                &clients,
-                ectx.event.window
-            );
-
-            Ok(())
-        });
-
-        Box::pin(handle_enter)
+                Ok(())
+            })
+            .boxed_local()
     }
 }
 
 fn set_active_window(
     conn: &xcb::Connection,
     config: &Config,
-    clients: &VecDeque<Client>,
+    clients: &Vec<Client>,
     window: xcb::Window,
 ) {
     let active_border = config.active_border;

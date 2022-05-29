@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use actix::{Actor, Context, Handler, Message, Supervised, SystemService};
 use anyhow::Result;
 
@@ -10,7 +9,7 @@ pub struct Client {
 
 #[derive(Default)]
 pub struct Clients {
-    clients: VecDeque<Client>,
+    pub clients: Vec<Client>,
 }
 
 impl Actor for Clients {
@@ -32,7 +31,10 @@ impl Handler<CreateClient> for Clients {
     type Result = Result<()>;
 
     fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
-        self.clients.push_front(Client {
+        // There won't be many clients, so this isn't completely horrible.
+        // Vec is easier for actors to handle compared to VecDeque
+        // because MessageResponse is implemented for Vec.
+        self.clients.insert(0, Client {
             window: msg.window,
             visible: true,
         });
@@ -44,19 +46,13 @@ impl Handler<CreateClient> for Clients {
 pub struct GetClients;
 
 impl Message for GetClients {
-    type Result = Result<VecDeque<Client>>;
+    type Result = Vec<Client>;
 }
 
 impl Handler<GetClients> for Clients {
-    type Result = Result<VecDeque<Client>>;
+    type Result = Vec<Client>;
 
     fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
-        Ok(self.clients.clone())
+        self.clients.clone()
     }
-}
-
-pub async fn get_clients() -> Result<VecDeque<Client>> {
-    Clients::from_registry()
-        .send(GetClients)
-        .await?
 }

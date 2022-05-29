@@ -1,7 +1,6 @@
-use crate::client::{Client, get_clients};
+use crate::client::{Client, Clients, GetClients};
 use crate::event::{EventContext, MapRequestEvent};
-use std::collections::VecDeque;
-use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService};
+use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
 #[derive(Default)]
@@ -18,33 +17,33 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        let clients = actix::fut::wrap_future::<_, Self>(get_clients());
+        Clients::from_registry()
+            .send(GetClients)
+            .into_actor(self)
+            .map(move |result, _actor, _ctx| {
+                let clients = result?;
 
-        let handle_clients = clients.map(move |result, _actor, _ctx| {
-            let clients = result?;
+                let screen = ectx.conn.get_setup().roots().next()
+                    .expect("Unable to find a screen.");
 
-            let screen = ectx.conn.get_setup().roots().next()
-                .expect("Unable to find a screen.");
+                resize(
+                    &ectx.conn,
+                    &clients,
+                    screen.width_in_pixels() as usize,
+                    screen.height_in_pixels() as usize,
+                    ectx.config.border_thickness,
+                    ectx.config.border_gap,
+                );
 
-            resize(
-                &ectx.conn,
-                &clients,
-                screen.width_in_pixels() as usize,
-                screen.height_in_pixels() as usize,
-                ectx.config.border_thickness,
-                ectx.config.border_gap,
-            );
-
-            Ok(())
-        });
-
-        Box::pin(handle_clients)
+                Ok(())
+            })
+            .boxed_local()
     }
 }
 
 fn resize(
     conn: &xcb::Connection,
-    clients: &VecDeque<Client>,
+    clients: &Vec<Client>,
     screen_width: usize,
     screen_height: usize,
     border_thickness: u32,
