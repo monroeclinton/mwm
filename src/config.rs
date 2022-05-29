@@ -2,6 +2,19 @@ use std::fs;
 use serde::Deserialize;
 
 #[derive(Clone, Deserialize)]
+pub enum Actions {
+    SelectLeftWindow,
+    SelectRightWindow,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Action {
+    pub modifier: u16,
+    pub keysym: u32,
+    pub action: Actions,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct Command {
     pub modifier: u16,
     pub keysym: u32,
@@ -14,6 +27,7 @@ pub struct Config {
     pub border_gap: u32,
     pub active_border: u32,
     pub inactive_border: u32,
+    pub actions: Vec<Action>,
     pub commands: Vec<Command>,
 }
 

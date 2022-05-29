@@ -10,7 +10,18 @@ active_border = 0x3b7a82
 # Color of border around windows when inactive
 inactive_border = 0x444444
 
-# List of commands
+# List of actions that the window manager handles
+[[actions]]
+modifier = 0x0008 # key: l-alt
+keysym = 0x006a # key: j
+action = "SelectLeftWindow"
+
+[[actions]]
+modifier = 0x0008 # key: l-alt
+keysym = 0x006b # key: k
+action = "SelectRightWindow"
+
+# List of commands that are executed
 [[commands]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x0070 # key: p
