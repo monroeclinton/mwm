@@ -43,7 +43,7 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
 
 fn resize(
     conn: &xcb::Connection,
-    clients: &Vec<Client>,
+    clients: &[Client],
     screen_width: usize,
     screen_height: usize,
     border_thickness: u32,

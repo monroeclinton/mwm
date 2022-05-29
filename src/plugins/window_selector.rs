@@ -51,7 +51,7 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
 fn set_active_window(
     conn: &xcb::Connection,
     config: &Config,
-    clients: &Vec<Client>,
+    clients: &[Client],
     window: xcb::Window,
 ) {
     let active_border = config.active_border;
