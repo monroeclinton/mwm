@@ -12,7 +12,7 @@ use anyhow::Result;
 pub struct WindowSizer;
 
 impl WindowSizer {
-    fn resize_clients(&mut self, conn: Arc<xcb::Connection>, config: Config) -> ResponseActFuture<Self, Result<()>> {
+    fn resize_clients(&mut self, conn: Arc<xcb::Connection>, config: Arc<Config>) -> ResponseActFuture<Self, Result<()>> {
         Clients::from_registry()
             .send(GetClients)
             .into_actor(self)

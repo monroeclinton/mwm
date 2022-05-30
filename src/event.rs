@@ -6,7 +6,7 @@ use anyhow::Result;
 #[derive(Clone, Message)]
 #[rtype(result = "Result<()>")]
 pub struct EventContext<E> {
-    pub config: Config,
+    pub config: Arc<Config>,
     pub conn: Arc<xcb::Connection>,
     pub event: E,
 }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
-    config: Config,
+    config: Arc<Config>,
     conn: Arc<xcb::Connection>,
 }
 
@@ -16,7 +16,7 @@ impl Default for WindowManager {
             .expect("Unable to access your display. Check your DISPLAY environment variable.");
 
         Self {
-            config: get_config(),
+            config: Arc::new(get_config()),
             conn: Arc::new(conn),
         }
     }

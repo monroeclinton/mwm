@@ -17,10 +17,10 @@ impl Handler<EventContext<KeyPressEvent>> for Commands {
 
     fn handle(&mut self, ectx: EventContext<KeyPressEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
-        for command in ectx.config.commands {
+        for command in &ectx.config.commands {
             if let Some(keycode) = key_symbols.get_keycode(command.keysym).next() {
                 if keycode == ectx.event.keycode && command.modifier == ectx.event.mask {
-                    std::process::Command::new(command.command)
+                    std::process::Command::new(command.command.clone())
                         .spawn()
                         .unwrap();
                 }

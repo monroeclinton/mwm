@@ -1,27 +1,27 @@
 use std::fs;
 use serde::Deserialize;
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub enum Actions {
     SelectLeftWindow,
     SelectRightWindow,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct Action {
     pub modifier: u16,
     pub keysym: u32,
     pub action: Actions,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct Command {
     pub modifier: u16,
     pub keysym: u32,
     pub command: String,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct Config {
     pub border_thickness: u32,
     pub border_gap: u32,

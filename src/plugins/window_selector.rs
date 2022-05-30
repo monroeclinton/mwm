@@ -86,7 +86,7 @@ impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
 
 struct SetActiveWindow {
     conn: Arc<xcb::Connection>,
-    config: Config,
+    config: Arc<Config>,
     clients: Vec<Client>,
     window: xcb::Window,
 }
