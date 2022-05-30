@@ -40,6 +40,15 @@ impl Actor for WindowManager {
             grab_key(&self.conn, action.modifier, action.keysym, screen.root());
         }
 
+        for workspace in 1..9 {
+            grab_key(
+                &self.conn,
+                self.config.workspace_modifier,
+                x11::keysym::XK_0 + workspace as u32,
+                screen.root()
+            );
+        }
+
         let values = [(
             xcb::CW_EVENT_MASK,
             xcb::EVENT_MASK_SUBSTRUCTURE_REDIRECT | xcb::EVENT_MASK_SUBSTRUCTURE_NOTIFY,
