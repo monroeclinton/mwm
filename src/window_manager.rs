@@ -1,8 +1,5 @@
 use crate::config::{Config, get_config};
-use crate::event::{
-    EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent,
-    EnterNotifyEvent, UnmapNotifyEvent
-};
+use crate::event::{EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent, EnterNotifyEvent, UnmapNotifyEvent, DestroyNotifyEvent};
 use crate::key::grab_key;
 use crate::listeners;
 use std::sync::Arc;
@@ -108,6 +105,11 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                         config,
                         conn: conn.clone(),
                         event: UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                    }).await,
+                    xcb::DESTROY_NOTIFY => listeners::on_destroy_notify(EventContext {
+                        config,
+                        conn: conn.clone(),
+                        event: DestroyNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
                     }).await,
                     // Events we do not care about
                     _ => (),
