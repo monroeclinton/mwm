@@ -28,7 +28,7 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
 
                 resize(
                     &ectx.conn,
-                    &clients,
+                    clients,
                     screen.width_in_pixels() as usize,
                     screen.height_in_pixels() as usize,
                     ectx.config.border_thickness,
@@ -43,7 +43,7 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
 
 fn resize(
     conn: &xcb::Connection,
-    clients: &[Client],
+    clients: Vec<Client>,
     screen_width: usize,
     screen_height: usize,
     border_thickness: u32,
@@ -53,13 +53,16 @@ fn resize(
     let border_double = border * 2;
     let gap = border_gap as usize;
     let gap_double = gap * 2;
-    let clients_length = clients.iter().filter(|&c| c.visible).count();
 
-    for (i, client) in clients.iter().enumerate() {
-        if !client.visible {
-            continue;
-        }
+    let visible_clients = clients
+        .iter()
+        .filter(|&c| c.visible)
+        .cloned()
+        .collect::<Vec<Client>>();
 
+    let clients_length = visible_clients.len();
+
+    for (i, client) in visible_clients.iter().enumerate() {
         let (mut x, mut y) = (gap, gap);
 
         let (mut width, mut height) = (
