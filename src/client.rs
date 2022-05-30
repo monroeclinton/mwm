@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use actix::{Actor, Context, Handler, Message, Supervised, SystemService};
 use anyhow::Result;
 
@@ -54,5 +55,65 @@ impl Handler<GetClients> for Clients {
 
     fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
         self.clients.clone()
+    }
+}
+
+pub struct HideWindow {
+    pub conn: Arc<xcb::Connection>,
+    pub window: xcb::Window,
+}
+
+impl Message for HideWindow {
+    type Result = ();
+}
+
+impl Handler<HideWindow> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: HideWindow, _ctx: &mut Self::Context) -> Self::Result {
+        for mut client in self.clients.iter_mut() {
+            if msg.window == client.window {
+                if client.visible {
+                    xcb::unmap_window(&msg.conn, client.window);
+                }
+
+                client.visible = false;
+                break;
+            }
+        }
+    }
+}
+
+pub struct VisibleWindows {
+    pub conn: Arc<xcb::Connection>,
+    pub windows: Vec<xcb::Window>,
+}
+
+impl Message for VisibleWindows {
+    type Result = ();
+}
+
+impl Handler<VisibleWindows> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: VisibleWindows, _ctx: &mut Self::Context) -> Self::Result {
+        let visible_windows = msg.windows;
+
+        for mut client in self.clients.iter_mut() {
+
+            if visible_windows.contains(&client.window) {
+                if !client.visible {
+                    xcb::map_window(&msg.conn, client.window);
+                }
+
+                client.visible = true;
+            } else {
+                if client.visible {
+                    xcb::unmap_window(&msg.conn, client.window);
+                }
+
+                client.visible = false;
+            }
+        }
     }
 }
