@@ -92,3 +92,15 @@ impl From<&xcb::UnmapNotifyEvent> for UnmapNotifyEvent {
     }
 }
 
+#[derive(Clone)]
+pub struct DestroyNotifyEvent {
+    pub window: xcb::Window,
+}
+
+impl From<&xcb::DestroyNotifyEvent> for DestroyNotifyEvent {
+    fn from(event: &xcb::DestroyNotifyEvent) -> Self {
+        Self {
+            window: event.window(),
+        }
+    }
+}
