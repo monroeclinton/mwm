@@ -1,10 +1,41 @@
+use crate::config::Config;
 use crate::client::{Client, Clients, GetClients};
-use crate::event::{EventContext, MapRequestEvent};
-use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
+use crate::event::{EventContext, MapRequestEvent, UnmapNotifyEvent};
+use std::sync::Arc;
+use actix::{
+    Actor, ActorFutureExt, Context, Handler, ResponseActFuture,
+    Supervised, SystemService, WrapFuture
+};
 use anyhow::Result;
 
 #[derive(Default)]
 pub struct WindowSizer;
+
+impl WindowSizer {
+    fn resize_clients(&mut self, conn: Arc<xcb::Connection>, config: Config) -> ResponseActFuture<Self, Result<()>> {
+        Clients::from_registry()
+            .send(GetClients)
+            .into_actor(self)
+            .map(move |result, _actor, _ctx| {
+                let clients = result?;
+
+                let screen = conn.get_setup().roots().next()
+                    .expect("Unable to find a screen.");
+
+                resize(
+                    &conn,
+                    clients,
+                    screen.width_in_pixels() as usize,
+                    screen.height_in_pixels() as usize,
+                    config.border_thickness,
+                    config.border_gap,
+                );
+
+                Ok(())
+            })
+            .boxed_local()
+    }
+}
 
 impl Actor for WindowSizer {
     type Context = Context<Self>;
@@ -17,27 +48,15 @@ impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        Clients::from_registry()
-            .send(GetClients)
-            .into_actor(self)
-            .map(move |result, _actor, _ctx| {
-                let clients = result?;
+        self.resize_clients(ectx.conn, ectx.config)
+    }
+}
 
-                let screen = ectx.conn.get_setup().roots().next()
-                    .expect("Unable to find a screen.");
+impl Handler<EventContext<UnmapNotifyEvent>> for WindowSizer {
+    type Result = ResponseActFuture<Self, Result<()>>;
 
-                resize(
-                    &ectx.conn,
-                    clients,
-                    screen.width_in_pixels() as usize,
-                    screen.height_in_pixels() as usize,
-                    ectx.config.border_thickness,
-                    ectx.config.border_gap,
-                );
-
-                Ok(())
-            })
-            .boxed_local()
+    fn handle(&mut self, ectx: EventContext<UnmapNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+        self.resize_clients(ectx.conn, ectx.config)
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::client::{Clients, VisibleWindows};
-use crate::event::{EventContext, KeyPressEvent, MapRequestEvent};
+use crate::event::{EventContext, DestroyNotifyEvent, KeyPressEvent, MapRequestEvent};
 use std::collections::HashMap;
 use std::sync::Arc;
 use actix::{
@@ -81,6 +81,18 @@ impl Handler<EventContext<MapRequestEvent>> for Workspaces {
             .expect("Unable to find workspace.");
 
         active_windows.push(ectx.event.window);
+
+        Ok(())
+    }
+}
+
+impl Handler<EventContext<DestroyNotifyEvent>> for Workspaces {
+    type Result = Result<()>;
+
+    fn handle(&mut self, ectx: EventContext<DestroyNotifyEvent>, _ctx: &mut Context<Self>) -> Self::Result {
+        for windows in self.workspaces.values_mut() {
+            windows.retain(|w| w.to_owned() != ectx.event.window);
+        }
 
         Ok(())
     }
