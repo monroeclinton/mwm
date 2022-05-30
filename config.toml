@@ -10,6 +10,9 @@ active_border = 0x3b7a82
 # Color of border around windows when inactive
 inactive_border = 0x444444
 
+# What modifier to switch workspace
+workspace_modifier = 0x0008 # key: l-alt
+
 # List of actions that the window manager handles
 [[actions]]
 modifier = 0x0008 # key: l-alt

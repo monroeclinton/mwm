@@ -27,6 +27,7 @@ pub struct Config {
     pub border_gap: u32,
     pub active_border: u32,
     pub inactive_border: u32,
+    pub workspace_modifier: u16,
     pub actions: Vec<Action>,
     pub commands: Vec<Command>,
 }
