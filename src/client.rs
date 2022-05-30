@@ -44,6 +44,24 @@ impl Handler<CreateClient> for Clients {
     }
 }
 
+pub struct DestroyClient {
+    pub window: xcb::Window,
+}
+
+impl Message for DestroyClient {
+    type Result = Result<()>;
+}
+
+impl Handler<DestroyClient> for Clients {
+    type Result = Result<()>;
+
+    fn handle(&mut self, msg: DestroyClient, _ctx: &mut Self::Context) -> Self::Result {
+        self.clients.retain(|c| c.window != msg.window);
+
+        Ok(())
+    }
+}
+
 pub struct GetClients;
 
 impl Message for GetClients {
