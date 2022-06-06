@@ -81,35 +81,54 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
 
             actix::spawn(async move {
                 match e.response_type() {
+                    xcb::CLIENT_MESSAGE => listeners::on_client_message(EventContext {
+                        config,
+                        conn: conn.clone(),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(e)
+                        },
+                    }).await,
                     xcb::KEY_PRESS => listeners::on_key_press(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: KeyPressEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(e)
+                        },
                     }).await,
                     xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: ConfigureRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(e)
+                        },
                     }).await,
                     xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: MapRequestEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
+                        },
                     }).await,
                     xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: EnterNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(e)
+                        },
                     }).await,
                     xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: UnmapNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(e)
+                        },
                     }).await,
                     xcb::DESTROY_NOTIFY => listeners::on_destroy_notify(EventContext {
                         config,
                         conn: conn.clone(),
-                        event: DestroyNotifyEvent::from(unsafe { xcb::cast_event(&e) }),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(e)
+                        },
                     }).await,
                     // Events we do not care about
                     _ => (),

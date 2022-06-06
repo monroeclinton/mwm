@@ -1,5 +1,5 @@
 use crate::client::{Clients, CreateClient};
-use crate::event::{EventContext, MapRequestEvent};
+use crate::event::EventContext;
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
 
@@ -13,22 +13,23 @@ impl Actor for MapWindow {
 impl Supervised for MapWindow {}
 impl SystemService for MapWindow {}
 
-impl Handler<EventContext<MapRequestEvent>> for MapWindow {
+impl Handler<EventContext<xcb::MapRequestEvent>> for MapWindow {
     type Result = Result<()>;
 
-    fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
-        if has_override_redirect(&ectx.conn, ectx.event.window) {
+    fn handle(&mut self, ectx: EventContext<xcb::MapRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
+        if has_override_redirect(&ectx.conn, ectx.event.window()) {
             return Ok(());
         }
 
         let values = [(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_ENTER_WINDOW)];
 
-        xcb::change_window_attributes(&ectx.conn, ectx.event.window, &values);
+        xcb::change_window_attributes(&ectx.conn, ectx.event.window(), &values);
 
-        xcb::map_window(&ectx.conn, ectx.event.window);
+        xcb::map_window(&ectx.conn, ectx.event.window());
 
         Clients::from_registry().do_send(CreateClient {
-            window: ectx.event.window,
+            conn: ectx.conn,
+            window: ectx.event.window(),
         });
 
         Ok(())

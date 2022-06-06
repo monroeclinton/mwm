@@ -1,6 +1,6 @@
 use crate::config::{Actions, Config};
 use crate::client::{Client, Clients, GetClients};
-use crate::event::{EventContext, KeyPressEvent, EnterNotifyEvent};
+use crate::event::EventContext;
 use std::sync::Arc;
 use actix::{Actor, ActorFutureExt, AsyncContext, Handler, Message, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
@@ -24,10 +24,18 @@ impl Actor for WindowSelector {
 impl Supervised for WindowSelector {}
 impl SystemService for WindowSelector {}
 
-impl Handler<EventContext<KeyPressEvent>> for WindowSelector {
+impl Handler<EventContext<xcb::ClientMessageEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: EventContext<KeyPressEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
+        self.set_active_window(ectx.conn, ectx.config, ectx.event.window())
+    }
+}
+
+impl Handler<EventContext<xcb::KeyPressEvent>> for WindowSelector {
+    type Result = ResponseActFuture<Self, Result<()>>;
+
+    fn handle(&mut self, ectx: EventContext<xcb::KeyPressEvent>, _ctx: &mut Self::Context) -> Self::Result {
         let active_window = self.active_window;
 
         Clients::from_registry()
@@ -43,7 +51,7 @@ impl Handler<EventContext<KeyPressEvent>> for WindowSelector {
                         .next()
                         .expect("Unknown keycode found in window_selector plugin.");
 
-                    if keycode == ectx.event.keycode && action.modifier == ectx.event.mask {
+                    if keycode == ectx.event.detail() && action.modifier == ectx.event.state() {
                         if let Some(window) = move_window(&active_window, &action.action, &clients) {
                             ctx.notify(SetActiveWindow {
                                 conn: ectx.conn.clone(),

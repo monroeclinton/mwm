@@ -44,18 +44,18 @@ impl Actor for WindowSizer {
 impl Supervised for WindowSizer {}
 impl SystemService for WindowSizer {}
 
-impl Handler<EventContext<MapRequestEvent>> for WindowSizer {
+impl Handler<EventContext<xcb::MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: EventContext<MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<xcb::MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
         self.resize_clients(ectx.conn, ectx.config)
     }
 }
 
-impl Handler<EventContext<UnmapNotifyEvent>> for WindowSizer {
+impl Handler<EventContext<xcb::UnmapNotifyEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: EventContext<UnmapNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, ectx: EventContext<xcb::UnmapNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
         self.resize_clients(ectx.conn, ectx.config)
     }
 }

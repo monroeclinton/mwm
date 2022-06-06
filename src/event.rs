@@ -1,106 +1,162 @@
 use crate::config::Config;
 use std::sync::Arc;
+use std::convert::TryFrom;
 use actix::prelude::*;
 use anyhow::Result;
 
-#[derive(Clone, Message)]
+#[derive(Message)]
 #[rtype(result = "Result<()>")]
 pub struct EventContext<E> {
     pub config: Arc<Config>,
-    pub conn: Arc<xcb::Connection>,
+    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub event: E,
 }
 
-#[derive(Clone)]
-pub struct KeyPressEvent {
-    pub keycode: xcb::Keycode,
-    pub mask: u16,
-}
+impl Clone for EventContext<xcb::ClientMessageEvent> {
+    fn clone(&self) -> Self {
+        let data = match self.event.format() {
+            16 => {
+                let slice = <[u16; 10]>::try_from(self.event.data().data16()).unwrap_or([0; 10]);
+                xcb::ClientMessageData::from_data16(slice)
+            },
+            32 => {
+                let slice = <[u32; 5]>::try_from(self.event.data().data32()).unwrap_or([0; 5]);
+                xcb::ClientMessageData::from_data32(slice)
+            },
+            _ => {
+                let slice = <[u8; 20]>::try_from(self.event.data().data8()).unwrap_or([0; 20]);
+                xcb::ClientMessageData::from_data8(slice)
+            },
+        };
 
-impl From<&xcb::KeyPressEvent> for KeyPressEvent {
-    fn from(event: &xcb::KeyPressEvent) -> Self {
+        let event = xcb::ClientMessageEvent::new(
+            self.event.format(),
+            self.event.window(),
+            self.event.type_(),
+            data,
+        );
+
         Self {
-            keycode: event.detail(),
-            mask: event.state(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct ConfigureRequestEvent {
-    pub upper_left_x: i16,
-    pub upper_left_y: i16,
-    pub width: u16,
-    pub height: u16,
-    pub border_width: u16,
-    pub sibling: xcb::Window,
-    pub window: xcb::Window,
-    pub stack_mode: u8,
-}
+impl Clone for EventContext<xcb::KeyPressEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::KeyPressEvent::new(
+            self.event.response_type(),
+            self.event.detail(),
+            self.event.time(),
+            self.event.root(),
+            self.event.event(),
+            self.event.child(),
+            self.event.root_x(),
+            self.event.root_y(),
+            self.event.event_x(),
+            self.event.event_y(),
+            self.event.state(),
+            self.event.same_screen()
+        );
 
-impl From<&xcb::ConfigureRequestEvent> for ConfigureRequestEvent {
-    fn from(event: &xcb::ConfigureRequestEvent) -> Self {
         Self {
-            upper_left_x: event.x(),
-            upper_left_y: event.y(),
-            width: event.width(),
-            height: event.height(),
-            border_width: event.border_width(),
-            sibling: event.sibling(),
-            window: event.window(),
-            stack_mode: event.stack_mode(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct MapRequestEvent {
-    pub window: xcb::Window,
-}
+impl Clone for EventContext<xcb::ConfigureRequestEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::ConfigureRequestEvent::new(
+            self.event.stack_mode(),
+            self.event.parent(),
+            self.event.window(),
+            self.event.sibling(),
+            self.event.x(),
+            self.event.y(),
+            self.event.width(),
+            self.event.height(),
+            self.event.border_width(),
+            self.event.value_mask()
+        );
 
-impl From<&xcb::MapRequestEvent> for MapRequestEvent {
-    fn from(event: &xcb::MapRequestEvent) -> Self {
         Self {
-            window: event.window(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct EnterNotifyEvent {
-    pub window: xcb::Window,
-}
+impl Clone for EventContext<xcb::MapRequestEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::MapRequestEvent::new(self.event.parent(), self.event.window());
 
-impl From<&xcb::EnterNotifyEvent> for EnterNotifyEvent {
-    fn from(event: &xcb::EnterNotifyEvent) -> Self {
         Self {
-            window: event.event(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct UnmapNotifyEvent {
-    pub window: xcb::Window,
-}
+impl Clone for EventContext<xcb::EnterNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::EnterNotifyEvent::new(
+            self.event.response_type(),
+            self.event.detail(),
+            self.event.time(),
+            self.event.root(),
+            self.event.event(),
+            self.event.child(),
+            self.event.root_x(),
+            self.event.root_y(),
+            self.event.event_x(),
+            self.event.event_y(),
+            self.event.state(),
+            self.event.mode(),
+            self.event.same_screen_focus()
+        );
 
-impl From<&xcb::UnmapNotifyEvent> for UnmapNotifyEvent {
-    fn from(event: &xcb::UnmapNotifyEvent) -> Self {
         Self {
-            window: event.window(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
 
-#[derive(Clone)]
-pub struct DestroyNotifyEvent {
-    pub window: xcb::Window,
+impl Clone for EventContext<xcb::UnmapNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::UnmapNotifyEvent::new(
+            self.event.event(),
+            self.event.window(),
+            self.event.from_configure()
+        );
+
+        Self {
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
+        }
+    }
 }
 
-impl From<&xcb::DestroyNotifyEvent> for DestroyNotifyEvent {
-    fn from(event: &xcb::DestroyNotifyEvent) -> Self {
+impl Clone for EventContext<xcb::DestroyNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::DestroyNotifyEvent::new(
+            self.event.event(),
+            self.event.window(),
+        );
+
         Self {
-            window: event.window(),
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
         }
     }
 }
