@@ -1,32 +1,10 @@
-use crate::client::{Clients, VisibleWindows};
-use crate::event::{EventContext, DestroyNotifyEvent, KeyPressEvent, MapRequestEvent};
-use std::collections::HashMap;
-use std::sync::Arc;
-use actix::{
-    Actor, ActorFutureExt, Context, Handler, Message, ResponseActFuture,
-    Supervised, SystemService, WrapFuture
-};
+use crate::client::{Clients, SetActiveWorkspace};
+use crate::event::EventContext;
+use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
-pub struct Workspaces {
-    active_workspace: u8,
-    workspaces: HashMap<u8, Vec<xcb::Window>>,
-}
-
-impl Default for Workspaces {
-    fn default() -> Self {
-        let mut workspaces = HashMap::new();
-
-        for w in 1..9 {
-            workspaces.insert(w, Vec::new());
-        }
-
-        Self {
-            active_workspace: 1,
-            workspaces,
-        }
-    }
-}
+#[derive(Default)]
+pub struct Workspaces;
 
 impl Actor for Workspaces {
     type Context = Context<Self>;
@@ -39,14 +17,20 @@ impl Handler<EventContext<xcb::ClientMessageEvent>> for Workspaces {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        Clients::from_registry()
-            .send(SetActiveWorkspace {
-                conn: ectx.conn,
-                workspace: 1,
-            })
-            .into_actor(self)
-            .map(|_, _, _| Ok(()))
-            .boxed_local()
+        if ectx.event.type_() == ectx.conn.CURRENT_DESKTOP() {
+            Clients::from_registry()
+                .send(SetActiveWorkspace {
+                    conn: ectx.conn,
+                    workspace: 1,
+                })
+                .into_actor(self)
+                .map(|_, _, _| Ok(()))
+                .boxed_local()
+        } else {
+            Box::pin(actix::fut::wrap_future::<_, Self>(async {
+                Ok(())
+            }))
+        }
     }
 }
 

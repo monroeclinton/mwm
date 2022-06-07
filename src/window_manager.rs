@@ -1,19 +1,32 @@
 use crate::config::{Config, get_config};
-use crate::event::{EventContext, KeyPressEvent, ConfigureRequestEvent, MapRequestEvent, EnterNotifyEvent, UnmapNotifyEvent, DestroyNotifyEvent};
+use crate::event::EventContext;
 use crate::key::grab_key;
 use crate::listeners;
+use crate::screen::get_screen;
 use std::sync::Arc;
 use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
     config: Arc<Config>,
-    conn: Arc<xcb::Connection>,
+    conn: Arc<xcb_util::ewmh::Connection>,
 }
 
 impl Default for WindowManager {
     fn default() -> Self {
-        let (conn, _) = xcb::Connection::connect(None)
+        let (conn, screen) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY environment variable.");
+
+        let conn = xcb_util::ewmh::Connection::connect(conn)
+            .map_err(|(e, _)| e)
+            .expect("Unable to create EWMH connection.");
+
+        xcb_util::ewmh::set_supported(&conn, screen, &[
+            conn.SUPPORTED(),
+            conn.CLIENT_LIST(),
+            conn.NUMBER_OF_DESKTOPS(),
+            conn.CURRENT_DESKTOP(),
+            conn.ACTIVE_WINDOW(),
+        ]);
 
         Self {
             config: Arc::new(get_config()),
@@ -26,8 +39,7 @@ impl Actor for WindowManager {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut actix::Context<Self>) {
-        let screen = self.conn.get_setup().roots().next()
-            .expect("Unable to find a screen.");
+        let screen = get_screen(&self.conn);
 
         for command in &self.config.commands {
             grab_key(&self.conn, command.modifier, command.keysym, screen.root());
@@ -45,6 +57,8 @@ impl Actor for WindowManager {
                 screen.root()
             );
         }
+
+        xcb_util::ewmh::set_number_of_desktops(&self.conn, 0, 9);
 
         let values = [(
             xcb::CW_EVENT_MASK,

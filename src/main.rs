@@ -5,6 +5,7 @@ mod key;
 mod listeners;
 mod macros;
 mod plugins;
+mod screen;
 mod window_manager;
 
 use actix::SystemService;

@@ -3,6 +3,11 @@ use crate::event::EventContext;
 use crate::macros::ignore_results;
 use actix::SystemService;
 
+pub async fn on_client_message(context: EventContext<xcb::ClientMessageEvent>) {
+    ignore_results!(plugins::WindowSelector::from_registry().send(context.clone()).await);
+    ignore_results!(plugins::Workspaces::from_registry().send(context.clone()).await);
+}
+
 pub async fn on_key_press(context: EventContext<xcb::KeyPressEvent>) {
     ignore_results!(plugins::Commands::from_registry().send(context.clone()).await);
     ignore_results!(plugins::WindowSelector::from_registry().send(context.clone()).await);

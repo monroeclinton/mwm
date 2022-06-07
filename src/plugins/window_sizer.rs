@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::client::{Client, Clients, GetClients};
-use crate::event::{EventContext, MapRequestEvent, UnmapNotifyEvent};
+use crate::event::EventContext;
+use crate::screen::get_screen;
 use std::sync::Arc;
 use actix::{
     Actor, ActorFutureExt, Context, Handler, ResponseActFuture,
@@ -9,18 +10,20 @@ use actix::{
 use anyhow::Result;
 
 #[derive(Default)]
-pub struct WindowSizer;
+pub struct WindowSizer {
+    padding_top: u32,
+    // TODO: Add rest of padding
+}
 
 impl WindowSizer {
-    fn resize_clients(&mut self, conn: Arc<xcb::Connection>, config: Arc<Config>) -> ResponseActFuture<Self, Result<()>> {
+    fn resize_clients(&mut self, conn: Arc<xcb_util::ewmh::Connection>, config: Arc<Config>) -> ResponseActFuture<Self, Result<()>> {
         Clients::from_registry()
             .send(GetClients)
             .into_actor(self)
             .map(move |result, _actor, _ctx| {
                 let clients = result?;
 
-                let screen = conn.get_setup().roots().next()
-                    .expect("Unable to find a screen.");
+                let screen = get_screen(&conn);
 
                 resize(
                     &conn,
@@ -61,7 +64,7 @@ impl Handler<EventContext<xcb::UnmapNotifyEvent>> for WindowSizer {
 }
 
 fn resize(
-    conn: &xcb::Connection,
+    conn: &xcb_util::ewmh::Connection,
     clients: Vec<Client>,
     screen_width: usize,
     screen_height: usize,
@@ -72,6 +75,8 @@ fn resize(
     let border_double = border * 2;
     let gap = border_gap as usize;
     let gap_double = gap * 2;
+    let status_bar_height = 20;
+    let available_height = screen_height - status_bar_height;
 
     let visible_clients = clients
         .iter()
@@ -82,21 +87,21 @@ fn resize(
     let clients_length = visible_clients.len();
 
     for (i, client) in visible_clients.iter().enumerate() {
-        let (mut x, mut y) = (gap, gap);
+        let (mut x, mut y) = (gap, gap + status_bar_height);
 
         let (mut width, mut height) = (
             screen_width - border_double - gap_double,
-            screen_height - border_double - gap_double,
+            available_height - border_double - gap_double,
         );
 
         if clients_length > 1 {
             width = (width - border_double - gap_double) / 2;
 
             if i > 0 {
-                let window_height = screen_height / (clients_length - 1);
+                let window_height = (available_height) / (clients_length - 1);
 
-                x = width + border_double + gap_double + gap;
-                y = window_height * (i - 1) + gap;
+                x = x + width + border_double + gap_double;
+                y = y + window_height * (i - 1);
 
                 height = window_height - border_double - gap_double;
             }

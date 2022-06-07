@@ -36,7 +36,7 @@ impl Handler<EventContext<xcb::MapRequestEvent>> for MapWindow {
     }
 }
 
-fn has_override_redirect(conn: &xcb::Connection, window: xcb::Window) -> bool {
+fn has_override_redirect(conn: &xcb_util::ewmh::Connection, window: xcb::Window) -> bool {
     let cookie = xcb::get_window_attributes(conn, window);
 
     if let Ok(attrs) = cookie.get_reply() {

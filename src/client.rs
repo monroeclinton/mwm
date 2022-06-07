@@ -5,12 +5,32 @@ use anyhow::Result;
 #[derive(Clone, PartialEq)]
 pub struct Client {
     pub window: xcb::Window,
+    pub workspace: u8,
     pub visible: bool,
 }
 
-#[derive(Default)]
 pub struct Clients {
     pub clients: Vec<Client>,
+    pub active_workspace: u8,
+}
+
+impl Default for Clients {
+    fn default() -> Self {
+        Self {
+            clients: vec![],
+            active_workspace: 1,
+        }
+    }
+}
+
+impl Clients {
+    fn set_client_list(&mut self, conn: &xcb_util::ewmh::Connection) {
+        xcb_util::ewmh::set_client_list(
+            &conn,
+            0,
+            &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>()
+        );
+    }
 }
 
 impl Actor for Clients {
@@ -21,6 +41,7 @@ impl Supervised for Clients {}
 impl SystemService for Clients {}
 
 pub struct CreateClient {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -37,14 +58,18 @@ impl Handler<CreateClient> for Clients {
         // because MessageResponse is implemented for Vec.
         self.clients.insert(0, Client {
             window: msg.window,
+            workspace: self.active_workspace,
             visible: true,
         });
+
+        self.set_client_list(&msg.conn);
 
         Ok(())
     }
 }
 
 pub struct DestroyClient {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -57,6 +82,8 @@ impl Handler<DestroyClient> for Clients {
 
     fn handle(&mut self, msg: DestroyClient, _ctx: &mut Self::Context) -> Self::Result {
         self.clients.retain(|c| c.window != msg.window);
+
+        self.set_client_list(&msg.conn);
 
         Ok(())
     }
@@ -77,7 +104,7 @@ impl Handler<GetClients> for Clients {
 }
 
 pub struct HideWindow {
-    pub conn: Arc<xcb::Connection>,
+    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -102,24 +129,23 @@ impl Handler<HideWindow> for Clients {
     }
 }
 
-pub struct VisibleWindows {
-    pub conn: Arc<xcb::Connection>,
-    pub windows: Vec<xcb::Window>,
+pub struct SetActiveWorkspace {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
+    pub workspace: u8,
 }
 
-impl Message for VisibleWindows {
+impl Message for SetActiveWorkspace {
     type Result = ();
 }
 
-impl Handler<VisibleWindows> for Clients {
+impl Handler<SetActiveWorkspace> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: VisibleWindows, _ctx: &mut Self::Context) -> Self::Result {
-        let visible_windows = msg.windows;
+    fn handle(&mut self, msg: SetActiveWorkspace, _ctx: &mut Self::Context) -> Self::Result {
+        self.active_workspace = msg.workspace;
 
         for mut client in self.clients.iter_mut() {
-
-            if visible_windows.contains(&client.window) {
+            if self.active_workspace == client.workspace{
                 if !client.visible {
                     xcb::map_window(&msg.conn, client.window);
                 }
@@ -133,5 +159,11 @@ impl Handler<VisibleWindows> for Clients {
                 client.visible = false;
             }
         }
+
+        xcb_util::ewmh::set_current_desktop(
+            &msg.conn,
+            0,
+            self.active_workspace as u32,
+        );
     }
 }

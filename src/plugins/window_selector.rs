@@ -9,6 +9,34 @@ pub struct WindowSelector {
     active_window: xcb::Window,
 }
 
+impl WindowSelector {
+    fn set_active_window(
+        &mut self,
+        conn: Arc<xcb_util::ewmh::Connection>,
+        config: Arc<Config>,
+        window: xcb::Window
+    ) -> ResponseActFuture<Self, Result<()>> {
+        self.active_window = window;
+
+        Clients::from_registry()
+            .send(GetClients)
+            .into_actor(self)
+            .map(move |result, _actor, ctx| {
+                let clients = result?;
+
+                ctx.notify(SetActiveWindow {
+                    conn,
+                    config,
+                    clients,
+                    window,
+                });
+
+                Ok(())
+            })
+            .boxed_local()
+    }
+}
+
 impl Default for WindowSelector {
     fn default() -> Self {
         Self {
@@ -28,7 +56,13 @@ impl Handler<EventContext<xcb::ClientMessageEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        self.set_active_window(ectx.conn, ectx.config, ectx.event.window())
+        if ectx.event.type_() == ectx.conn.ACTIVE_WINDOW() {
+            self.set_active_window(ectx.conn, ectx.config, ectx.event.window())
+        } else {
+            Box::pin(actix::fut::wrap_future::<_, Self>(async {
+                Ok(())
+            }))
+        }
     }
 }
 
@@ -69,31 +103,16 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for WindowSelector {
     }
 }
 
-impl Handler<EventContext<EnterNotifyEvent>> for WindowSelector {
+impl Handler<EventContext<xcb::EnterNotifyEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
-    fn handle(&mut self, ectx: EventContext<EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        self.active_window = ectx.event.window;
-
-        Clients::from_registry()
-            .send(GetClients)
-            .into_actor(self)
-            .map(move |result, _actor, ctx| {
-                ctx.notify(SetActiveWindow {
-                    conn: ectx.conn,
-                    config: ectx.config,
-                    clients: result?,
-                    window: ectx.event.window,
-                });
-
-                Ok(())
-            })
-            .boxed_local()
+    fn handle(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+        self.set_active_window(ectx.conn, ectx.config, ectx.event.event())
     }
 }
 
 struct SetActiveWindow {
-    conn: Arc<xcb::Connection>,
+    conn: Arc<xcb_util::ewmh::Connection>,
     config: Arc<Config>,
     clients: Vec<Client>,
     window: xcb::Window,
@@ -155,7 +174,7 @@ fn move_window(
 }
 
 fn set_active_window(
-    conn: &xcb::Connection,
+    conn: &xcb_util::ewmh::Connection,
     config: &Config,
     clients: &[Client],
     window: xcb::Window,
@@ -181,4 +200,6 @@ fn set_active_window(
             );
         }
     }
+
+    xcb_util::ewmh::set_active_window(&conn, 0, window);
 }
