@@ -14,4 +14,4 @@ tokio = { version = "1.18.2", features = ["full"] }
 toml = "0.5.9"
 x11 = "2.19.1"
 xcb = { version = "0.10.1", features = ["xkb"] }
-xcb-util = { version = "0.4.0", features = ["keysyms", "thread"] }
+xcb-util = { version = "0.4.0", features = ["ewmh", "keysyms", "thread"] }
