@@ -7,6 +7,7 @@ pub struct Client {
     pub window: xcb::Window,
     pub workspace: u8,
     pub visible: bool,
+    pub controlled: bool, // If should resize/size/configure window
 }
 
 pub struct Clients {
@@ -53,6 +54,20 @@ impl Handler<CreateClient> for Clients {
     type Result = Result<()>;
 
     fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
+        let cookie = xcb_util::ewmh::get_wm_window_type(&msg.conn, msg.window)
+            .get_reply();
+
+        let mut controlled = true;
+
+        if let Ok(reply) = cookie {
+            let atoms = reply.atoms();
+            for atom in atoms {
+                if *atom == msg.conn.WM_WINDOW_TYPE_DOCK() {
+                    controlled = false;
+                }
+            }
+        }
+
         // There won't be many clients, so this isn't completely horrible.
         // Vec is easier for actors to handle compared to VecDeque
         // because MessageResponse is implemented for Vec.
@@ -60,6 +75,7 @@ impl Handler<CreateClient> for Clients {
             window: msg.window,
             workspace: self.active_workspace,
             visible: true,
+            controlled,
         });
 
         self.set_client_list(&msg.conn);
@@ -123,6 +139,29 @@ impl Handler<HideWindow> for Clients {
                 }
 
                 client.visible = false;
+                break;
+            }
+        }
+    }
+}
+
+pub struct SetControlledStatus {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
+    pub window: xcb::Window,
+    pub status: bool,
+}
+
+impl Message for SetControlledStatus {
+    type Result = ();
+}
+
+impl Handler<SetControlledStatus> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: SetControlledStatus, _ctx: &mut Self::Context) -> Self::Result {
+        for mut client in self.clients.iter_mut() {
+            if msg.window == client.window {
+                client.controlled = msg.status;
                 break;
             }
         }
