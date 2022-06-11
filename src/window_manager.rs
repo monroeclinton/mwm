@@ -71,6 +71,12 @@ impl Actor for WindowManager {
             panic!("Unable to change window attributes. Is another window manager running?")
         }
 
+        for program in &self.config.autostart {
+            std::process::Command::new(program)
+                .spawn()
+                .unwrap();
+        }
+
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
             let conn = c.clone();
             let event = tokio::task::spawn_blocking(move || {

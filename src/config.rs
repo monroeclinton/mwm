@@ -28,6 +28,7 @@ pub struct Config {
     pub active_border: u32,
     pub inactive_border: u32,
     pub workspace_modifier: u16,
+    pub autostart: Vec<String>,
     pub actions: Vec<Action>,
     pub commands: Vec<Command>,
 }
