@@ -104,6 +104,23 @@ impl Clone for EventContext<xcb::MapRequestEvent> {
     }
 }
 
+impl Clone for EventContext<xcb::PropertyNotifyEvent> {
+    fn clone(&self) -> Self {
+        let event = xcb::PropertyNotifyEvent::new(
+            self.event.window(),
+            self.event.atom(),
+            self.event.time(),
+            self.event.state()
+        );
+
+        Self {
+            config: self.config.clone(),
+            conn: self.conn.clone(),
+            event,
+        }
+    }
+}
+
 impl Clone for EventContext<xcb::EnterNotifyEvent> {
     fn clone(&self) -> Self {
         let event = xcb::EnterNotifyEvent::new(

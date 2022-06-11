@@ -23,6 +23,11 @@ pub async fn on_map_request(context: EventContext<xcb::MapRequestEvent>) {
     ignore_results!(plugins::WindowSizer::from_registry().send(context.clone()).await);
 }
 
+pub async fn on_property_notify(context: EventContext<xcb::PropertyNotifyEvent>) {
+    ignore_results!(plugins::WindowSizer::from_registry().send(context.clone()).await);
+    ignore_results!(plugins::ConfigureWindow::from_registry().send(context).await);
+}
+
 pub async fn on_enter_notify(context: EventContext<xcb::EnterNotifyEvent>) {
     ignore_results!(plugins::WindowSelector::from_registry().send(context.clone()).await);
 }

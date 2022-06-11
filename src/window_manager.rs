@@ -129,6 +129,13 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                             std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
                         },
                     }).await,
+                    xcb::PROPERTY_NOTIFY => listeners::on_property_notify(EventContext {
+                        config,
+                        conn: conn.clone(),
+                        event: unsafe {
+                            std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(e)
+                        },
+                    }).await,
                     xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
                         config,
                         conn: conn.clone(),

@@ -1,6 +1,7 @@
 use crate::event::EventContext;
 use actix::{Actor, Context, Handler, Supervised, SystemService};
 use anyhow::Result;
+use crate::client::{Clients, SetControlledStatus};
 
 #[derive(Default)]
 pub struct ConfigureWindow;
@@ -33,6 +34,31 @@ impl Handler<EventContext<xcb::ConfigureRequestEvent>> for ConfigureWindow {
         ];
 
         xcb::configure_window(&ectx.conn, ectx.event.window(), &values);
+
+        Ok(())
+    }
+}
+
+impl Handler<EventContext<xcb::PropertyNotifyEvent>> for ConfigureWindow {
+    type Result = Result<()>;
+
+    fn handle(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+        if ectx.event.atom() == ectx.conn.WM_WINDOW_TYPE() {
+            let cookie= xcb_util::ewmh::get_wm_window_type(&ectx.conn, ectx.event.window())
+                .get_reply()?;
+
+            let atoms = cookie.atoms();
+
+            for atom in atoms {
+                if *atom == ectx.conn.WM_WINDOW_TYPE_DOCK() {
+                    Clients::from_registry().do_send(SetControlledStatus {
+                        conn: ectx.conn.clone(),
+                        window: ectx.event.window(),
+                        status: false,
+                    });
+                }
+            }
+        }
 
         Ok(())
     }

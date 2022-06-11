@@ -17,6 +17,8 @@ pub struct WindowSizer {
 
 impl WindowSizer {
     fn resize_clients(&mut self, conn: Arc<xcb_util::ewmh::Connection>, config: Arc<Config>) -> ResponseActFuture<Self, Result<()>> {
+        let padding_top = self.padding_top;
+
         Clients::from_registry()
             .send(GetClients)
             .into_actor(self)
@@ -30,8 +32,9 @@ impl WindowSizer {
                     clients,
                     screen.width_in_pixels() as usize,
                     screen.height_in_pixels() as usize,
-                    config.border_thickness,
-                    config.border_gap,
+                    config.border_thickness as usize,
+                    config.border_gap as usize,
+                    padding_top as usize,
                 );
 
                 Ok(())
@@ -46,6 +49,23 @@ impl Actor for WindowSizer {
 
 impl Supervised for WindowSizer {}
 impl SystemService for WindowSizer {}
+
+impl Handler<EventContext<xcb::PropertyNotifyEvent>> for WindowSizer {
+    type Result = ResponseActFuture<Self, Result<()>>;
+
+    fn handle(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+        if ectx.event.atom() == ectx.conn.WM_STRUT_PARTIAL() {
+            let cookie = xcb_util::ewmh::get_wm_strut_partial(&ectx.conn, ectx.event.window())
+                .get_reply();
+
+            if let Ok(struct_partial) = cookie {
+                self.padding_top = self.padding_top + struct_partial.top;
+            }
+        }
+
+        self.resize_clients(ectx.conn, ectx.config)
+    }
+}
 
 impl Handler<EventContext<xcb::MapRequestEvent>> for WindowSizer {
     type Result = ResponseActFuture<Self, Result<()>>;
@@ -68,26 +88,26 @@ fn resize(
     clients: Vec<Client>,
     screen_width: usize,
     screen_height: usize,
-    border_thickness: u32,
-    border_gap: u32,
+    border_thickness: usize,
+    border_gap: usize,
+    padding_top: usize,
 ) {
-    let border = border_thickness as usize;
+    let border = border_thickness;
     let border_double = border * 2;
-    let gap = border_gap as usize;
+    let gap = border_gap;
     let gap_double = gap * 2;
-    let status_bar_height = 20;
-    let available_height = screen_height - status_bar_height;
+    let available_height = screen_height - padding_top;
 
     let visible_clients = clients
         .iter()
-        .filter(|&c| c.visible)
+        .filter(|&c| c.visible && c.controlled)
         .cloned()
         .collect::<Vec<Client>>();
 
     let clients_length = visible_clients.len();
 
     for (i, client) in visible_clients.iter().enumerate() {
-        let (mut x, mut y) = (gap, gap + status_bar_height);
+        let (mut x, mut y) = (gap, gap + padding_top);
 
         let (mut width, mut height) = (
             screen_width - border_double - gap_double,
