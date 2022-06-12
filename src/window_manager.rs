@@ -59,6 +59,7 @@ impl Actor for WindowManager {
         }
 
         xcb_util::ewmh::set_number_of_desktops(&self.conn, 0, 9);
+        xcb_util::ewmh::set_current_desktop(&self.conn, 0, 1);
 
         let values = [(
             xcb::CW_EVENT_MASK,
