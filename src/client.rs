@@ -5,9 +5,10 @@ use anyhow::Result;
 #[derive(Clone, PartialEq)]
 pub struct Client {
     pub window: xcb::Window,
-    pub workspace: u8,
+    pub workspace: Option<u8>,
     pub visible: bool,
     pub controlled: bool, // If should resize/size/configure window
+    pub padding_top: u32,
 }
 
 pub struct Clients {
@@ -68,14 +69,29 @@ impl Handler<CreateClient> for Clients {
             }
         }
 
+        let cookie = xcb_util::ewmh::get_wm_strut_partial(&msg.conn, msg.window)
+            .get_reply();
+
+        // TODO: Add other paddings
+        let mut padding_top = 0;
+        if let Ok(struct_partial) = cookie {
+            padding_top = struct_partial.top;
+        }
+
+        let mut workspace = None;
+        if controlled {
+            workspace = Some(self.active_workspace);
+        }
+
         // There won't be many clients, so this isn't completely horrible.
         // Vec is easier for actors to handle compared to VecDeque
         // because MessageResponse is implemented for Vec.
         self.clients.insert(0, Client {
             window: msg.window,
-            workspace: self.active_workspace,
+            workspace,
             visible: true,
             controlled,
+            padding_top,
         });
 
         self.set_client_list(&msg.conn);
@@ -183,8 +199,8 @@ impl Handler<SetActiveWorkspace> for Clients {
     fn handle(&mut self, msg: SetActiveWorkspace, _ctx: &mut Self::Context) -> Self::Result {
         self.active_workspace = msg.workspace;
 
-        for mut client in self.clients.iter_mut() {
-            if self.active_workspace == client.workspace{
+        for mut client in self.clients.iter_mut().filter(|c| c.controlled) {
+            if Some(self.active_workspace) == client.workspace {
                 if !client.visible {
                     xcb::map_window(&msg.conn, client.window);
                 }
