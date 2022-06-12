@@ -49,7 +49,7 @@ impl Actor for WindowManager {
             grab_key(&self.conn, action.modifier, action.keysym, screen.root());
         }
 
-        for workspace in 1..9 {
+        for workspace in 1..=9 {
             grab_key(
                 &self.conn,
                 self.config.workspace_modifier,
