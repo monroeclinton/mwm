@@ -1,0 +1,11 @@
+# Height of bar
+height = 20
+
+# Background color
+background = 0x333333
+
+# Font family of text
+font_family = "monospace"
+
+# Font size on bar
+font_size = 10
