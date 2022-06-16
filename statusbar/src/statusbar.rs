@@ -80,7 +80,7 @@ impl Actor for StatusBar {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut actix::Context<Self>) {
-        self.draw.workspaces();
+        self.draw.draw_bar();
 
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
             let conn = c.clone();
@@ -104,7 +104,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for StatusBar {
             let conn = self.conn.clone();
 
             match e.response_type() {
-                xcb::PROPERTY_NOTIFY => self.draw.workspaces(),
+                xcb::PROPERTY_NOTIFY => self.draw.draw_bar(),
                 // Events we do not care about
                 _ => (),
             };
