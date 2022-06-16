@@ -4,6 +4,7 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 pub struct Config {
     pub height: u16,
+    pub margin: u16,
     pub font_size: u32,
     pub font_family: String,
     pub font_color: u32,

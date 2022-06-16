@@ -1,6 +1,9 @@
 # Height of bar
 height = 20
 
+# Margin around window
+margin = 5
+
 # Font size on bar
 font_size = 10
 
