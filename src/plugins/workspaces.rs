@@ -41,7 +41,7 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Workspaces {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
 
         let mut active_workspace: Option<u8> = None;
-        for workspace in 1..9 {
+        for workspace in 1..=9 {
             let keycode = key_symbols
                 .get_keycode(x11::keysym::XK_0 + workspace as u32)
                 .next()
