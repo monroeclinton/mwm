@@ -162,7 +162,7 @@ impl Draw {
                 set_source_rgb(&context, self.config.font_color);
             }
 
-            context.move_to(offset, (self.config.height as f64 / 2.0) + (extents.height / 2.0));
+            context.move_to(offset, (self.config.height as f64 + extents.height) / 2.0);
             context.show_text(workspace.as_str())
                 .expect("Cannot position text on surface in statusbar.");
 
