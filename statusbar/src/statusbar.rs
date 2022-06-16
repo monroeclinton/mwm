@@ -39,7 +39,7 @@ impl Default for StatusBar {
             xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
             screen.root_visual(),
             &[
-                (xcb::CW_BACK_PIXEL, config.background),
+                (xcb::CW_BACK_PIXEL, config.background_color),
                 (xcb::CW_OVERRIDE_REDIRECT, 0),
             ],
         );

@@ -5,10 +5,10 @@ border_thickness = 2
 border_gap = 4
 
 # Color of border around windows when active
-active_border = 0x3b7a82
+active_border = 0x56b6c2
 
 # Color of border around windows when inactive
-inactive_border = 0x444444
+inactive_border = 0x4b5263
 
 # What modifier to switch workspace
 workspace_modifier = 0x0008 # key: l-alt

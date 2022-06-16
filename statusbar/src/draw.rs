@@ -70,30 +70,57 @@ impl Draw {
             cairo::FontWeight::Normal
         ).expect("Unable to create font face in statusbar.");
 
-        let mut offset = 10.0;
+        let workspace_padding = self.config.workspace_padding as f64;
+
+        let mut offset = workspace_padding / 2.0;
+
+        set_source_rgb(&context, self.config.background_color);
+        context.paint().expect("Unable to clear surface.");
 
         for i in 1..=workspaces {
             let workspace = i.to_string();
             let extents = context.text_extents(workspace.as_str())
                 .expect("Unable to find text text extents of statusbar workspace.");
 
+            if i == active_workspace {
+                set_source_rgb(&context, self.config.background_active_color);
+
+                context.rectangle(
+                    offset - workspace_padding / 2.0,
+                    0.0,
+                    extents.width + workspace_padding,
+                    20.0
+                );
+
+                context.fill()
+                    .expect("Unable to create active rectangle.");
+            }
+
             context.set_font_face(&font_face);
             context.set_font_size(self.config.font_size as f64);
 
             if i == active_workspace {
-                context.set_source_rgb(255.0, 255.0, 255.0);
+                set_source_rgb(&context, self.config.font_active_color);
             } else {
-                context.set_source_rgb(0.0, 0.0, 0.0);
+                set_source_rgb(&context, self.config.font_color);
             }
 
             context.move_to(offset, (self.config.height as f64 / 2.0) + (extents.height / 2.0));
             context.show_text(workspace.as_str())
                 .expect("Cannot position text on surface in statusbar.");
 
-            offset += extents.width + 10.0;
+            offset += extents.width + workspace_padding;
         }
 
         self.surface.flush();
         self.xcb_conn.flush();
     }
+}
+
+fn set_source_rgb(context: &cairo::Context, color: u32) {
+    context.set_source_rgb(
+        (color >> 16 & 255) as f64 / 255.0,
+        (color >> 8 & 255) as f64 / 255.0,
+        (color & 255) as f64 / 255.0
+    );
 }
