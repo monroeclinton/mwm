@@ -1,5 +1,6 @@
 use crate::client::{Clients, SetActiveWorkspace};
 use crate::event::EventContext;
+use crate::plugins::window_selector::{WindowSelector, SetActiveWindow};
 use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
@@ -49,18 +50,30 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Workspaces {
 
             if keycode == ectx.event.detail() && ectx.config.workspace_modifier == ectx.event.state() {
                 active_workspace = Some(workspace);
+                break;
             }
         }
 
         drop(key_symbols);
 
         if let Some(workspace) = active_workspace {
+            let conn = ectx.conn.clone();
+
             Clients::from_registry()
                 .send(SetActiveWorkspace {
-                    conn: ectx.conn,
+                    conn,
                     workspace,
                 })
                 .into_actor(self)
+                .then(|_, actor, _ctx| {
+                    WindowSelector::from_registry()
+                        .send(SetActiveWindow {
+                            conn: ectx.conn,
+                            config: ectx.config,
+                            window: None,
+                        })
+                        .into_actor(actor)
+                })
                 .map(|_, _, _| Ok(()))
                 .boxed_local()
         } else {

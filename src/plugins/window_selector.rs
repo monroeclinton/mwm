@@ -6,33 +6,24 @@ use actix::{Actor, ActorFutureExt, AsyncContext, Handler, Message, ResponseActFu
 use anyhow::Result;
 
 pub struct WindowSelector {
-    active_window: xcb::Window,
+    active_window: Option<xcb::Window>,
 }
 
 impl WindowSelector {
     fn set_active_window(
-        &mut self,
+        &self,
         conn: Arc<xcb_util::ewmh::Connection>,
         config: Arc<Config>,
-        window: xcb::Window
-    ) -> ResponseActFuture<Self, Result<()>> {
-        self.active_window = window;
-
-        Clients::from_registry()
-            .send(GetClients)
-            .into_actor(self)
-            .map(move |result, _actor, ctx| {
-                let clients = result?;
-
-                ctx.notify(SetActiveWindow {
-                    conn,
-                    config,
-                    clients,
-                    window,
-                });
-
-                Ok(())
+        window: Option<xcb::Window>
+    ) -> ResponseActFuture<Self, Result<()>>{
+        WindowSelector::from_registry()
+            .send(SetActiveWindow {
+                conn,
+                config,
+                window,
             })
+            .into_actor(self)
+            .map(|_, _, _| { Ok(()) })
             .boxed_local()
     }
 }
@@ -40,7 +31,7 @@ impl WindowSelector {
 impl Default for WindowSelector {
     fn default() -> Self {
         Self {
-            active_window: 0,
+            active_window: None,
         }
     }
 }
@@ -56,13 +47,7 @@ impl Handler<EventContext<xcb::ClientMessageEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        if ectx.event.type_() == ectx.conn.ACTIVE_WINDOW() {
-            self.set_active_window(ectx.conn, ectx.config, ectx.event.window())
-        } else {
-            Box::pin(actix::fut::wrap_future::<_, Self>(async {
-                Ok(())
-            }))
-        }
+        self.set_active_window(ectx.conn, ectx.config, Some(ectx.event.window()))
     }
 }
 
@@ -86,13 +71,14 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for WindowSelector {
                         .expect("Unknown keycode found in window_selector plugin.");
 
                     if keycode == ectx.event.detail() && action.modifier == ectx.event.state() {
-                        if let Some(window) = move_window(&active_window, &action.action, &clients) {
-                            ctx.notify(SetActiveWindow {
-                                conn: ectx.conn.clone(),
-                                config: ectx.config.clone(),
-                                clients: clients.clone(),
-                                window,
-                            });
+                        if let Some(active_window) = active_window {
+                            if let Some(window) = move_window(&active_window, &action.action, &clients) {
+                                ctx.notify(SetActiveWindow {
+                                    conn: ectx.conn.clone(),
+                                    config: ectx.config.clone(),
+                                    window: Some(window),
+                                });
+                            }
                         }
                     }
                 }
@@ -107,33 +93,46 @@ impl Handler<EventContext<xcb::EnterNotifyEvent>> for WindowSelector {
     type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
-        self.set_active_window(ectx.conn, ectx.config, ectx.event.event())
+        self.set_active_window(ectx.conn, ectx.config, Some(ectx.event.event()))
     }
 }
 
-struct SetActiveWindow {
-    conn: Arc<xcb_util::ewmh::Connection>,
-    config: Arc<Config>,
-    clients: Vec<Client>,
-    window: xcb::Window,
+pub struct SetActiveWindow {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
+    pub config: Arc<Config>,
+    pub window: Option<xcb::Window>,
 }
 
 impl Message for SetActiveWindow {
-    type Result = ();
+    type Result = Result<()>;
 }
 
 impl Handler<SetActiveWindow> for WindowSelector {
-    type Result = ();
+    type Result = ResponseActFuture<Self, Result<()>>;
 
     fn handle(&mut self, msg: SetActiveWindow, _ctx: &mut Self::Context) -> Self::Result {
         self.active_window = msg.window;
 
-        set_active_window(
-            &msg.conn,
-            &msg.config,
-            &msg.clients,
-            msg.window
-        );
+        Clients::from_registry()
+            .send(GetClients)
+            .into_actor(self)
+            .map(move |result, _actor, _ctx| {
+                let clients = result?;
+
+                if let Some(window) = msg.window {
+                    set_active_window(
+                        &msg.conn,
+                        &msg.config,
+                        &clients,
+                        window
+                    );
+                } else {
+                    xcb_util::ewmh::set_active_window(&msg.conn, 0, 0);
+                }
+
+                Ok(())
+            })
+            .boxed_local()
     }
 }
 
