@@ -4,7 +4,7 @@ use crate::key::grab_key;
 use crate::listeners;
 use crate::screen::get_screen;
 use std::sync::Arc;
-use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
+use actix::{Actor, AsyncContext, Context, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
     config: Arc<Config>,
@@ -36,9 +36,9 @@ impl Default for WindowManager {
 }
 
 impl Actor for WindowManager {
-    type Context = actix::Context<Self>;
+    type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut actix::Context<Self>) {
+    fn started(&mut self, ctx: &mut Context<Self>) {
         let screen = get_screen(&self.conn);
 
         for command in &self.config.commands {
@@ -95,7 +95,7 @@ impl Supervised for WindowManager {}
 impl SystemService for WindowManager {}
 
 impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
-    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut actix::Context<Self>) {
+    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut Context<Self>) {
         if let Some(e) = event {
             let config = self.config.clone();
             let conn = self.conn.clone();

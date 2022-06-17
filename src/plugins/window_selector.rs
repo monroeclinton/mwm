@@ -2,7 +2,7 @@ use crate::config::{Actions, Config};
 use crate::client::{Client, Clients, GetClients};
 use crate::event::EventContext;
 use std::sync::Arc;
-use actix::{Actor, ActorFutureExt, AsyncContext, Handler, Message, ResponseActFuture, Supervised, SystemService, WrapFuture};
+use actix::{Actor, ActorFutureExt, AsyncContext, Context, Handler, Message, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
 pub struct WindowSelector {
@@ -37,7 +37,7 @@ impl Default for WindowSelector {
 }
 
 impl Actor for WindowSelector {
-    type Context = actix::Context<Self>;
+    type Context = Context<Self>;
 }
 
 impl Supervised for WindowSelector {}

@@ -2,7 +2,7 @@ use crate::config::get_config;
 use crate::draw::Draw;
 use crate::screen::get_screen;
 use std::sync::Arc;
-use actix::{Actor, AsyncContext, StreamHandler, Supervised, SystemService};
+use actix::{Actor, AsyncContext, Context, StreamHandler, Supervised, SystemService};
 
 pub struct StatusBar {
     conn: Arc<xcb_util::ewmh::Connection>,
@@ -77,9 +77,9 @@ impl Default for StatusBar {
 }
 
 impl Actor for StatusBar {
-    type Context = actix::Context<Self>;
+    type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut actix::Context<Self>) {
+    fn started(&mut self, ctx: &mut Context<Self>) {
         self.draw.draw_bar();
 
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
@@ -99,7 +99,7 @@ impl Supervised for StatusBar {}
 impl SystemService for StatusBar {}
 
 impl StreamHandler<Option<xcb::GenericEvent>> for StatusBar {
-    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut actix::Context<Self>) {
+    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut Context<Self>) {
         if let Some(e) = event {
             let conn = self.conn.clone();
 
