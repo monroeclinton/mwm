@@ -134,10 +134,19 @@ impl Draw {
 
         let mut offset = workspace_padding / 2.0;
 
+        let max_width = (1..=workspaces)
+            .map(|i| {
+                let workspace = i.to_string();
+                let extents = context.text_extents(workspace.as_str())
+                    .expect("Unable to find text text extents of statusbar workspace.");
+
+                extents.width
+            })
+            .reduce(f64::max)
+            .unwrap_or(0.0);
+
         for i in 1..=workspaces {
             let workspace = i.to_string();
-            let extents = context.text_extents(workspace.as_str())
-                .expect("Unable to find text text extents of statusbar workspace.");
 
             if i == active_workspace {
                 set_source_rgb(&context, self.config.background_active_color);
@@ -145,7 +154,7 @@ impl Draw {
                 context.rectangle(
                     offset - workspace_padding / 2.0,
                     0.0,
-                    extents.width + workspace_padding,
+                    max_width + workspace_padding,
                     20.0
                 );
 
@@ -162,11 +171,11 @@ impl Draw {
                 set_source_rgb(&context, self.config.font_color);
             }
 
-            context.move_to(offset, (self.config.height as f64 + extents.height) / 2.0);
+            context.move_to(offset, (self.config.height as f64 + max_width) / 2.0);
             context.show_text(workspace.as_str())
                 .expect("Cannot position text on surface in statusbar.");
 
-            offset += extents.width + workspace_padding;
+            offset += max_width + workspace_padding;
         }
 
         self.surface.flush();
