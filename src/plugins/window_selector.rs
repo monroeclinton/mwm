@@ -1,33 +1,24 @@
 use crate::client::{Clients, SetActiveWindow, HandleWindowAction};
 use crate::event::EventContext;
-use actix::{Actor, Context, Handler, Supervised, SystemService};
+use crate::plugin::PluginHandler;
+use actix::SystemService;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct WindowSelector;
 
-impl Actor for WindowSelector {
-    type Context = Context<Self>;
-}
-
-impl Supervised for WindowSelector {}
-impl SystemService for WindowSelector {}
-
-impl Handler<EventContext<xcb::ClientMessageEvent>> for WindowSelector {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
+impl PluginHandler for WindowSelector {
+    fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
         Clients::from_registry().do_send(SetActiveWindow {
             conn: ectx.conn,
             config: ectx.config,
             window: Some(ectx.event.window()),
         });
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::KeyPressEvent>> for WindowSelector {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::KeyPressEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_key_press(&mut self, ectx: EventContext<xcb::KeyPressEvent>) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
 
         for action_key_press in ectx.config.actions.iter() {
@@ -45,17 +36,17 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for WindowSelector {
                 });
             }
         }
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::EnterNotifyEvent>> for WindowSelector {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_enter_notify(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>) -> Result<()> {
         Clients::from_registry().do_send(SetActiveWindow {
             conn: ectx.conn,
             config: ectx.config,
             window: Some(ectx.event.event()),
         });
+
+        Ok(())
     }
 }

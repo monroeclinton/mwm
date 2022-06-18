@@ -1,8 +1,10 @@
 use crate::config::Config;
 use crate::client::{Clients, ResizeClients};
 use crate::event::EventContext;
+use crate::plugin::PluginHandler;
 use std::sync::Arc;
-use actix::{Actor, Context, Handler, Supervised, SystemService};
+use actix::SystemService;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct WindowSizer;
@@ -16,35 +18,24 @@ impl WindowSizer {
     }
 }
 
-impl Actor for WindowSizer {
-    type Context = Context<Self>;
-}
-
-impl Supervised for WindowSizer {}
-impl SystemService for WindowSizer {}
-
-impl Handler<EventContext<xcb::PropertyNotifyEvent>> for WindowSizer {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+impl PluginHandler for WindowSizer {
+    fn on_property_notify(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>) -> Result<()> {
         if ectx.event.atom() == ectx.conn.WM_STRUT_PARTIAL() {
             self.resize_clients(ectx.conn, ectx.config);
         }
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::MapRequestEvent>> for WindowSizer {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::MapRequestEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_map_request(&mut self, ectx: EventContext<xcb::MapRequestEvent>) -> Result<()> {
         self.resize_clients(ectx.conn, ectx.config);
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::UnmapNotifyEvent>> for WindowSizer {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::UnmapNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_unmap_notify(&mut self, ectx: EventContext<xcb::UnmapNotifyEvent>) -> Result<()> {
         self.resize_clients(ectx.conn, ectx.config);
+
+        Ok(())
     }
 }

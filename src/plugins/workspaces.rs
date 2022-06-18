@@ -1,34 +1,25 @@
 use crate::client::{Clients, SetActiveWorkspace, SetActiveWindow};
 use crate::event::EventContext;
-use actix::{Actor, Context, Handler, Supervised, SystemService};
+use crate::plugin::PluginHandler;
+use actix::SystemService;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct Workspaces;
 
-impl Actor for Workspaces {
-    type Context = Context<Self>;
-}
-
-impl Supervised for Workspaces {}
-impl SystemService for Workspaces {}
-
-impl Handler<EventContext<xcb::ClientMessageEvent>> for Workspaces {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::ClientMessageEvent>, _ctx: &mut Self::Context) -> Self::Result {
+impl PluginHandler for Workspaces {
+    fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
         if ectx.event.type_() == ectx.conn.CURRENT_DESKTOP() {
             Clients::from_registry().do_send(SetActiveWorkspace {
                 conn: ectx.conn,
                 workspace: 1,
             });
         }
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::KeyPressEvent>> for Workspaces {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::KeyPressEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_key_press(&mut self, ectx: EventContext<xcb::KeyPressEvent>) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
 
         let mut active_workspace: Option<u8> = None;
@@ -60,5 +51,7 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Workspaces {
                 window: None,
             });
         }
+
+        Ok(())
     }
 }

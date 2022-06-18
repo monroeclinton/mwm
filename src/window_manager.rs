@@ -1,7 +1,7 @@
 use crate::config::{Config, get_config};
 use crate::event::EventContext;
 use crate::key::grab_key;
-use crate::listeners;
+use crate::listener::Listener;
 use crate::screen::get_screen;
 use std::sync::Arc;
 use actix::{Actor, AsyncContext, Context, StreamHandler, Supervised, SystemService};
@@ -9,6 +9,7 @@ use actix::{Actor, AsyncContext, Context, StreamHandler, Supervised, SystemServi
 pub struct WindowManager {
     config: Arc<Config>,
     conn: Arc<xcb_util::ewmh::Connection>,
+    listener: Listener,
 }
 
 impl Default for WindowManager {
@@ -31,6 +32,7 @@ impl Default for WindowManager {
         Self {
             config: Arc::new(get_config()),
             conn: Arc::new(conn),
+            listener: Listener::default(),
         }
     }
 }
@@ -101,56 +103,56 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
             let conn = self.conn.clone();
 
             match e.response_type() {
-                xcb::CLIENT_MESSAGE => listeners::on_client_message(EventContext {
+                xcb::CLIENT_MESSAGE => self.listener.on_client_message(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(e)
                     },
                 }),
-                xcb::KEY_PRESS => listeners::on_key_press(EventContext {
+                xcb::KEY_PRESS => self.listener.on_key_press(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(e)
                     },
                 }),
-                xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
+                xcb::CONFIGURE_REQUEST => self.listener.on_configure_request(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(e)
                     },
                 }),
-                xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
+                xcb::MAP_REQUEST => self.listener.on_map_request(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
                     },
                 }),
-                xcb::PROPERTY_NOTIFY => listeners::on_property_notify(EventContext {
+                xcb::PROPERTY_NOTIFY => self.listener.on_property_notify(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(e)
                     },
                 }),
-                xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
+                xcb::ENTER_NOTIFY => self.listener.on_enter_notify(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(e)
                     },
                 }),
-                xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
+                xcb::UNMAP_NOTIFY => self.listener.on_unmap_notify(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {
                         std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(e)
                     },
                 }),
-                xcb::DESTROY_NOTIFY => listeners::on_destroy_notify(EventContext {
+                xcb::DESTROY_NOTIFY => self.listener.on_destroy_notify(EventContext {
                     config,
                     conn: conn.clone(),
                     event: unsafe {

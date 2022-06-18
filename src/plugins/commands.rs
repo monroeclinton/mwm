@@ -1,20 +1,12 @@
 use crate::event::EventContext;
-use actix::{Actor, Context, Handler, Supervised, SystemService};
+use crate::plugin::PluginHandler;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct Commands;
 
-impl Actor for Commands {
-    type Context = Context<Self>;
-}
-
-impl Supervised for Commands {}
-impl SystemService for Commands {}
-
-impl Handler<EventContext<xcb::KeyPressEvent>> for Commands {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::KeyPressEvent>, _ctx: &mut Context<Self>) -> Self::Result {
+impl PluginHandler for Commands {
+    fn on_key_press(&mut self, ectx: EventContext<xcb::KeyPressEvent>) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
         for command in &ectx.config.commands {
             if let Some(keycode) = key_symbols.get_keycode(command.keysym).next() {
@@ -25,5 +17,7 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Commands {
                 }
             }
         }
+
+        Ok(())
     }
 }

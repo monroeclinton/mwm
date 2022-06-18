@@ -1,21 +1,13 @@
 use crate::client::{Clients, SetControlledStatus};
 use crate::event::EventContext;
-use actix::{Actor, Context, Handler, Supervised, SystemService};
+use crate::plugin::PluginHandler;
+use actix::SystemService;
 
 #[derive(Default)]
 pub struct ConfigureWindow;
 
-impl Actor for ConfigureWindow {
-    type Context = Context<Self>;
-}
-
-impl Supervised for ConfigureWindow {}
-impl SystemService for ConfigureWindow {}
-
-impl Handler<EventContext<xcb::ConfigureRequestEvent>> for ConfigureWindow {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::ConfigureRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
+impl PluginHandler for ConfigureWindow {
+    fn on_configure_request(&mut self, ectx: EventContext<xcb::ConfigureRequestEvent>) -> anyhow::Result<()> {
         let values = vec![
             (xcb::CONFIG_WINDOW_X as u16, ectx.event.x() as u32),
             (xcb::CONFIG_WINDOW_Y as u16, ectx.event.y() as u32),
@@ -35,13 +27,11 @@ impl Handler<EventContext<xcb::ConfigureRequestEvent>> for ConfigureWindow {
         xcb::configure_window(&ectx.conn, ectx.event.window(), &values);
 
         ectx.conn.flush();
+
+        Ok(())
     }
-}
 
-impl Handler<EventContext<xcb::PropertyNotifyEvent>> for ConfigureWindow {
-    type Result = ();
-
-    fn handle(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn on_property_notify(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>) -> anyhow::Result<()> {
         if ectx.event.atom() == ectx.conn.WM_WINDOW_TYPE() {
             let reply = xcb_util::ewmh::get_wm_window_type(&ectx.conn, ectx.event.window())
                 .get_reply();
@@ -60,5 +50,7 @@ impl Handler<EventContext<xcb::PropertyNotifyEvent>> for ConfigureWindow {
                 }
             }
         }
+
+        Ok(())
     }
 }
