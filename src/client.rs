@@ -86,6 +86,10 @@ impl Handler<CreateClient> for Clients {
         let mut workspace = None;
         if controlled {
             workspace = Some(self.active_workspace);
+
+            ctx.notify(SetActiveWindow {
+                window: Some(msg.window),
+            });
         }
 
         // There won't be many clients, so this isn't completely horrible.
