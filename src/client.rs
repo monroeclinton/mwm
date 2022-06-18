@@ -1,5 +1,6 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use actix::{Actor, Context, Handler, Message, AsyncContext};
 
@@ -15,7 +16,7 @@ pub struct Client {
 pub struct Clients {
     pub conn: Arc<xcb_util::ewmh::Connection>,
     pub config: Arc<Config>,
-    pub clients: Vec<Client>,
+    pub clients: VecDeque<Client>,
     pub active_workspace: u8,
     pub active_window: Option<xcb::Window>,
 }
@@ -25,7 +26,7 @@ impl Clients {
         Self {
             conn,
             config,
-            clients: vec![],
+            clients: VecDeque::new(),
             active_workspace: 1,
             active_window: None,
         }
@@ -92,10 +93,7 @@ impl Handler<CreateClient> for Clients {
             });
         }
 
-        // There won't be many clients, so this isn't completely horrible.
-        // Vec is easier for actors to handle compared to VecDeque
-        // because MessageResponse is implemented for Vec.
-        self.clients.insert(0, Client {
+        self.clients.push_front(Client {
             window: msg.window,
             workspace,
             visible: true,
