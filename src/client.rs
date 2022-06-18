@@ -2,7 +2,6 @@ use crate::config::{Action, Config};
 use crate::screen::get_screen;
 use std::sync::Arc;
 use actix::{Actor, Context, Handler, Message, Supervised, SystemService};
-use anyhow::Result;
 
 #[derive(Clone, PartialEq)]
 pub struct Client {
@@ -52,11 +51,11 @@ pub struct CreateClient {
 }
 
 impl Message for CreateClient {
-    type Result = Result<()>;
+    type Result = ();
 }
 
 impl Handler<CreateClient> for Clients {
-    type Result = Result<()>;
+    type Result = ();
 
     fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
         let cookie = xcb_util::ewmh::get_wm_window_type(&msg.conn, msg.window)
@@ -99,8 +98,6 @@ impl Handler<CreateClient> for Clients {
         });
 
         self.set_client_list(&msg.conn);
-
-        Ok(())
     }
 }
 
@@ -110,18 +107,16 @@ pub struct DestroyClient {
 }
 
 impl Message for DestroyClient {
-    type Result = Result<()>;
+    type Result = ();
 }
 
 impl Handler<DestroyClient> for Clients {
-    type Result = Result<()>;
+    type Result = ();
 
     fn handle(&mut self, msg: DestroyClient, _ctx: &mut Self::Context) -> Self::Result {
         self.clients.retain(|c| c.window != msg.window);
 
         self.set_client_list(&msg.conn);
-
-        Ok(())
     }
 }
 
