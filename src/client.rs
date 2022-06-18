@@ -125,20 +125,6 @@ impl Handler<DestroyClient> for Clients {
     }
 }
 
-pub struct GetClients;
-
-impl Message for GetClients {
-    type Result = Vec<Client>;
-}
-
-impl Handler<GetClients> for Clients {
-    type Result = Vec<Client>;
-
-    fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
-        self.clients.clone()
-    }
-}
-
 pub struct ResizeClients;
 
 impl Message for ResizeClients {
