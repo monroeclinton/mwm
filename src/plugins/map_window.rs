@@ -26,6 +26,8 @@ impl Handler<EventContext<xcb::MapRequestEvent>> for MapWindow {
 
         xcb::map_window(&ectx.conn, ectx.event.window());
 
+        ectx.conn.flush();
+
         Clients::from_registry().do_send(CreateClient {
             conn: ectx.conn,
             window: ectx.event.window(),

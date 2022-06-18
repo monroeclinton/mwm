@@ -208,6 +208,7 @@ impl Handler<ResizeClients> for Clients {
             );
         }
 
+        msg.conn.flush();
     }
 }
 
@@ -234,6 +235,8 @@ impl Handler<HideWindow> for Clients {
                 break;
             }
         }
+
+        msg.conn.flush();
     }
 }
 
@@ -296,6 +299,8 @@ impl Handler<SetActiveWorkspace> for Clients {
             0,
             self.active_workspace as u32,
         );
+
+        msg.conn.flush();
     }
 }
 
@@ -340,6 +345,8 @@ impl Handler<SetActiveWindow> for Clients {
         } else {
             xcb_util::ewmh::set_active_window(&msg.conn, 0, 0);
         }
+
+        msg.conn.flush();
     }
 }
 

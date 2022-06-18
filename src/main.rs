@@ -3,7 +3,6 @@ mod config;
 mod event;
 mod key;
 mod listeners;
-mod macros;
 mod plugins;
 mod screen;
 mod window_manager;

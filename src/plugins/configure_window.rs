@@ -33,6 +33,8 @@ impl Handler<EventContext<xcb::ConfigureRequestEvent>> for ConfigureWindow {
         ];
 
         xcb::configure_window(&ectx.conn, ectx.event.window(), &values);
+
+        ectx.conn.flush();
     }
 }
 

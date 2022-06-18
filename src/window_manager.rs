@@ -100,70 +100,68 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
             let config = self.config.clone();
             let conn = self.conn.clone();
 
-            actix::spawn(async move {
-                match e.response_type() {
-                    xcb::CLIENT_MESSAGE => listeners::on_client_message(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(e)
-                        },
-                    }).await,
-                    xcb::KEY_PRESS => listeners::on_key_press(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(e)
-                        },
-                    }).await,
-                    xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(e)
-                        },
-                    }).await,
-                    xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
-                        },
-                    }).await,
-                    xcb::PROPERTY_NOTIFY => listeners::on_property_notify(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(e)
-                        },
-                    }).await,
-                    xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(e)
-                        },
-                    }).await,
-                    xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(e)
-                        },
-                    }).await,
-                    xcb::DESTROY_NOTIFY => listeners::on_destroy_notify(EventContext {
-                        config,
-                        conn: conn.clone(),
-                        event: unsafe {
-                            std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(e)
-                        },
-                    }).await,
-                    // Events we do not care about
-                    _ => (),
-                };
+            match e.response_type() {
+                xcb::CLIENT_MESSAGE => listeners::on_client_message(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(e)
+                    },
+                }),
+                xcb::KEY_PRESS => listeners::on_key_press(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(e)
+                    },
+                }),
+                xcb::CONFIGURE_REQUEST => listeners::on_configure_request(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(e)
+                    },
+                }),
+                xcb::MAP_REQUEST => listeners::on_map_request(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
+                    },
+                }),
+                xcb::PROPERTY_NOTIFY => listeners::on_property_notify(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(e)
+                    },
+                }),
+                xcb::ENTER_NOTIFY => listeners::on_enter_notify(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(e)
+                    },
+                }),
+                xcb::UNMAP_NOTIFY => listeners::on_unmap_notify(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(e)
+                    },
+                }),
+                xcb::DESTROY_NOTIFY => listeners::on_destroy_notify(EventContext {
+                    config,
+                    conn: conn.clone(),
+                    event: unsafe {
+                        std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(e)
+                    },
+                }),
+                // Events we do not care about
+                _ => (),
+            };
 
-                conn.flush();
-            });
+            conn.flush();
         }
     }
 }
