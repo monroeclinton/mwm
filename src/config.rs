@@ -1,17 +1,17 @@
 use std::fs;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
-pub enum Actions {
+#[derive(Clone, Deserialize)]
+pub enum Action {
     SelectLeftWindow,
     SelectRightWindow,
 }
 
 #[derive(Deserialize)]
-pub struct Action {
+pub struct ActionKeyPress {
     pub modifier: u16,
     pub keysym: u32,
-    pub action: Actions,
+    pub action: Action,
 }
 
 #[derive(Deserialize)]
@@ -29,7 +29,7 @@ pub struct Config {
     pub inactive_border: u32,
     pub workspace_modifier: u16,
     pub autostart: Vec<String>,
-    pub actions: Vec<Action>,
+    pub actions: Vec<ActionKeyPress>,
     pub commands: Vec<Command>,
 }
 

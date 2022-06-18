@@ -1,6 +1,5 @@
-use crate::client::{Clients, SetActiveWorkspace};
+use crate::client::{Clients, SetActiveWorkspace, SetActiveWindow};
 use crate::event::EventContext;
-use crate::plugins::window_selector::{WindowSelector, SetActiveWindow};
 use actix::{Actor, ActorFutureExt, Context, Handler, ResponseActFuture, Supervised, SystemService, WrapFuture};
 use anyhow::Result;
 
@@ -66,7 +65,7 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Workspaces {
                 })
                 .into_actor(self)
                 .then(|_, actor, _ctx| {
-                    WindowSelector::from_registry()
+                    Clients::from_registry()
                         .send(SetActiveWindow {
                             conn: ectx.conn,
                             config: ectx.config,
