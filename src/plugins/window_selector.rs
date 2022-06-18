@@ -9,7 +9,6 @@ pub struct WindowSelector;
 impl PluginHandler for WindowSelector {
     fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
         ectx.clients.do_send(SetActiveWindow {
-            config: ectx.config,
             window: Some(ectx.event.window()),
         });
 
@@ -27,7 +26,6 @@ impl PluginHandler for WindowSelector {
 
             if keycode == ectx.event.detail() && action_key_press.modifier == ectx.event.state() {
                 ectx.clients.do_send(HandleWindowAction {
-                    config: ectx.config.clone(),
                     action: action_key_press.action.clone(),
                     window: ectx.event.event(),
                 });
@@ -39,7 +37,6 @@ impl PluginHandler for WindowSelector {
 
     fn on_enter_notify(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>) -> Result<()> {
         ectx.clients.do_send(SetActiveWindow {
-            config: ectx.config,
             window: Some(ectx.event.event()),
         });
 

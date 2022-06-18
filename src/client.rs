@@ -1,7 +1,7 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
 use std::sync::Arc;
-use actix::{Actor, Context, Handler, Message};
+use actix::{Actor, Context, Handler, Message, AsyncContext};
 
 #[derive(Clone, PartialEq)]
 pub struct Client {
@@ -14,15 +14,17 @@ pub struct Client {
 
 pub struct Clients {
     pub conn: Arc<xcb_util::ewmh::Connection>,
+    pub config: Arc<Config>,
     pub clients: Vec<Client>,
     pub active_workspace: u8,
     pub active_window: Option<xcb::Window>,
 }
 
 impl Clients {
-    pub fn new(conn: Arc<xcb_util::ewmh::Connection>) -> Self {
+    pub fn new(conn: Arc<xcb_util::ewmh::Connection>, config: Arc<Config>) -> Self {
         Self {
             conn,
+            config,
             clients: vec![],
             active_workspace: 1,
             active_window: None,
@@ -53,7 +55,7 @@ impl Message for CreateClient {
 impl Handler<CreateClient> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CreateClient, ctx: &mut Self::Context) -> Self::Result {
         let cookie = xcb_util::ewmh::get_wm_window_type(
             &self.conn,
             msg.window
@@ -133,9 +135,7 @@ impl Handler<GetClients> for Clients {
     }
 }
 
-pub struct ResizeClients {
-    pub config: Arc<Config>,
-}
+pub struct ResizeClients;
 
 impl Message for ResizeClients {
     type Result = ();
@@ -144,14 +144,14 @@ impl Message for ResizeClients {
 impl Handler<ResizeClients> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: ResizeClients, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: ResizeClients, _ctx: &mut Self::Context) -> Self::Result {
         let screen = get_screen(&self.conn);
 
         let screen_width = screen.width_in_pixels() as usize;
         let screen_height = screen.height_in_pixels() as usize;
-        let border = msg.config.border_thickness as usize;
+        let border = self.config.border_thickness as usize;
         let border_double = border * 2;
-        let gap = msg.config.border_gap as usize;
+        let gap = self.config.border_gap as usize;
         let gap_double = gap * 2;
 
         let visible_clients = self.clients
@@ -295,7 +295,6 @@ impl Handler<SetActiveWorkspace> for Clients {
 }
 
 pub struct SetActiveWindow {
-    pub config: Arc<Config>,
     pub window: Option<xcb::Window>,
 }
 
@@ -308,8 +307,8 @@ impl Handler<SetActiveWindow> for Clients {
 
     fn handle(&mut self, msg: SetActiveWindow, _ctx: &mut Self::Context) -> Self::Result {
         if let Some(window) = msg.window {
-            let active_border = msg.config.active_border;
-            let inactive_border = msg.config.inactive_border;
+            let active_border = self.config.active_border;
+            let inactive_border = self.config.inactive_border;
 
             xcb::set_input_focus(
                 &self.conn,
@@ -340,7 +339,6 @@ impl Handler<SetActiveWindow> for Clients {
 }
 
 pub struct HandleWindowAction {
-    pub config: Arc<Config>,
     pub action: Action,
     pub window: xcb::Window,
 }

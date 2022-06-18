@@ -41,7 +41,6 @@ impl PluginHandler for Workspaces {
             });
 
             ectx.clients.do_send(SetActiveWindow {
-                config: ectx.config,
                 window: None,
             });
         }

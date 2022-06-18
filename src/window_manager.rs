@@ -34,7 +34,7 @@ impl Default for WindowManager {
         let conn = Arc::new(conn);
         let config = Arc::new(get_config());
 
-        let clients = Clients::new(conn.clone())
+        let clients = Clients::new(conn.clone(), config.clone())
             .start();
 
         Self {
