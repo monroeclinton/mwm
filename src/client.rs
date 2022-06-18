@@ -1,4 +1,5 @@
 use crate::config::{Action, Config};
+use crate::screen::get_screen;
 use std::sync::Arc;
 use actix::{Actor, Context, Handler, Message, Supervised, SystemService};
 use anyhow::Result;
@@ -135,6 +136,78 @@ impl Handler<GetClients> for Clients {
 
     fn handle(&mut self, _msg: GetClients, _ctx: &mut Self::Context) -> Self::Result {
         self.clients.clone()
+    }
+}
+
+pub struct ResizeClients {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
+    pub config: Arc<Config>,
+}
+
+impl Message for ResizeClients {
+    type Result = ();
+}
+
+impl Handler<ResizeClients> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: ResizeClients, _ctx: &mut Self::Context) -> Self::Result {
+        let screen = get_screen(&msg.conn);
+
+        let screen_width = screen.width_in_pixels() as usize;
+        let screen_height = screen.height_in_pixels() as usize;
+        let border = msg.config.border_thickness as usize;
+        let border_double = border * 2;
+        let gap = msg.config.border_gap as usize;
+        let gap_double = gap * 2;
+
+        let visible_clients = self.clients
+            .iter()
+            .filter(|&c| c.visible && c.controlled)
+            .cloned()
+            .collect::<Vec<Client>>();
+
+        let padding_top = self.clients.iter()
+            .filter(|&c| c.visible)
+            .fold(0, |acc, c| acc + c.padding_top) as usize;
+
+        let clients_length = visible_clients.len();
+        let available_height = screen_height - padding_top;
+
+        for (i, client) in visible_clients.iter().enumerate() {
+            let (mut x, mut y) = (gap, gap + padding_top);
+
+            let (mut width, mut height) = (
+                screen_width - border_double - gap_double,
+                available_height - border_double - gap_double,
+            );
+
+            if clients_length > 1 {
+                width = (width - border_double - gap_double) / 2;
+
+                if i > 0 {
+                    let window_height = (available_height) / (clients_length - 1);
+
+                    x = x + width + border_double + gap_double;
+                    y = y + window_height * (i - 1);
+
+                    height = window_height - border_double - gap_double;
+                }
+            }
+
+            xcb::configure_window(
+                &msg.conn,
+                client.window,
+                &[
+                    (xcb::CONFIG_WINDOW_X as u16, x as u32),
+                    (xcb::CONFIG_WINDOW_Y as u16, y as u32),
+                    (xcb::CONFIG_WINDOW_WIDTH as u16, width as u32),
+                    (xcb::CONFIG_WINDOW_HEIGHT as u16, height as u32),
+                    (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
+                ],
+            );
+        }
+
     }
 }
 

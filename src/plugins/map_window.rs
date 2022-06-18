@@ -1,7 +1,6 @@
 use crate::client::{Clients, CreateClient};
 use crate::event::EventContext;
 use actix::{Actor, Context, Handler, Supervised, SystemService};
-use anyhow::Result;
 
 #[derive(Default)]
 pub struct MapWindow;
@@ -14,11 +13,11 @@ impl Supervised for MapWindow {}
 impl SystemService for MapWindow {}
 
 impl Handler<EventContext<xcb::MapRequestEvent>> for MapWindow {
-    type Result = Result<()>;
+    type Result = ();
 
     fn handle(&mut self, ectx: EventContext<xcb::MapRequestEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         if has_override_redirect(&ectx.conn, ectx.event.window()) {
-            return Ok(());
+            return;
         }
 
         let values = [(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE | xcb::EVENT_MASK_STRUCTURE_NOTIFY | xcb::EVENT_MASK_ENTER_WINDOW)];
@@ -31,8 +30,6 @@ impl Handler<EventContext<xcb::MapRequestEvent>> for MapWindow {
             conn: ectx.conn,
             window: ectx.event.window(),
         });
-
-        Ok(())
     }
 }
 

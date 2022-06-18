@@ -2,10 +2,9 @@ use crate::config::Config;
 use std::sync::Arc;
 use std::convert::TryFrom;
 use actix::prelude::*;
-use anyhow::Result;
 
 #[derive(Message)]
-#[rtype(result = "Result<()>")]
+#[rtype(result = "()")]
 pub struct EventContext<E> {
     pub config: Arc<Config>,
     pub conn: Arc<xcb_util::ewmh::Connection>,

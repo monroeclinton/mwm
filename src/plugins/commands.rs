@@ -1,6 +1,5 @@
 use crate::event::EventContext;
 use actix::{Actor, Context, Handler, Supervised, SystemService};
-use anyhow::Result;
 
 #[derive(Default)]
 pub struct Commands;
@@ -13,7 +12,7 @@ impl Supervised for Commands {}
 impl SystemService for Commands {}
 
 impl Handler<EventContext<xcb::KeyPressEvent>> for Commands {
-    type Result = Result<()>;
+    type Result = ();
 
     fn handle(&mut self, ectx: EventContext<xcb::KeyPressEvent>, _ctx: &mut Context<Self>) -> Self::Result {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
@@ -26,7 +25,5 @@ impl Handler<EventContext<xcb::KeyPressEvent>> for Commands {
                 }
             }
         }
-
-        Ok(())
     }
 }
