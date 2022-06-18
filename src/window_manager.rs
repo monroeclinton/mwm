@@ -1,12 +1,14 @@
+use crate::client::Clients;
 use crate::config::{Config, get_config};
 use crate::event::EventContext;
 use crate::key::grab_key;
 use crate::listener::Listener;
 use crate::screen::get_screen;
 use std::sync::Arc;
-use actix::{Actor, AsyncContext, Context, StreamHandler, Supervised, SystemService};
+use actix::{Actor, Addr, AsyncContext, Context, StreamHandler, Supervised, SystemService};
 
 pub struct WindowManager {
+    clients: Addr<Clients>,
     config: Arc<Config>,
     conn: Arc<xcb_util::ewmh::Connection>,
     listener: Listener,
@@ -29,9 +31,16 @@ impl Default for WindowManager {
             conn.ACTIVE_WINDOW(),
         ]);
 
+        let conn = Arc::new(conn);
+        let config = Arc::new(get_config());
+
+        let clients = Clients::new(conn.clone())
+            .start();
+
         Self {
-            config: Arc::new(get_config()),
-            conn: Arc::new(conn),
+            clients,
+            config,
+            conn,
             listener: Listener::default(),
         }
     }
@@ -99,11 +108,13 @@ impl SystemService for WindowManager {}
 impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
     fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut Context<Self>) {
         if let Some(e) = event {
+            let clients = self.clients.clone();
             let config = self.config.clone();
             let conn = self.conn.clone();
 
             match e.response_type() {
                 xcb::CLIENT_MESSAGE => self.listener.on_client_message(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -111,6 +122,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::KEY_PRESS => self.listener.on_key_press(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -118,6 +130,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::CONFIGURE_REQUEST => self.listener.on_configure_request(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -125,6 +138,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::MAP_REQUEST => self.listener.on_map_request(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -132,6 +146,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::PROPERTY_NOTIFY => self.listener.on_property_notify(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -139,6 +154,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::ENTER_NOTIFY => self.listener.on_enter_notify(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -146,6 +162,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::UNMAP_NOTIFY => self.listener.on_unmap_notify(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {
@@ -153,6 +170,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
                     },
                 }),
                 xcb::DESTROY_NOTIFY => self.listener.on_destroy_notify(EventContext {
+                    clients,
                     config,
                     conn: conn.clone(),
                     event: unsafe {

@@ -1,7 +1,6 @@
-use crate::client::{Clients, SetActiveWindow, HandleWindowAction};
+use crate::client::{SetActiveWindow, HandleWindowAction};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
-use actix::SystemService;
 use anyhow::Result;
 
 #[derive(Default)]
@@ -9,8 +8,7 @@ pub struct WindowSelector;
 
 impl PluginHandler for WindowSelector {
     fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
-        Clients::from_registry().do_send(SetActiveWindow {
-            conn: ectx.conn,
+        ectx.clients.do_send(SetActiveWindow {
             config: ectx.config,
             window: Some(ectx.event.window()),
         });
@@ -28,8 +26,7 @@ impl PluginHandler for WindowSelector {
                 .expect("Unknown keycode found in window_selector plugin.");
 
             if keycode == ectx.event.detail() && action_key_press.modifier == ectx.event.state() {
-                Clients::from_registry().do_send(HandleWindowAction {
-                    conn: ectx.conn.clone(),
+                ectx.clients.do_send(HandleWindowAction {
                     config: ectx.config.clone(),
                     action: action_key_press.action.clone(),
                     window: ectx.event.event(),
@@ -41,8 +38,7 @@ impl PluginHandler for WindowSelector {
     }
 
     fn on_enter_notify(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>) -> Result<()> {
-        Clients::from_registry().do_send(SetActiveWindow {
-            conn: ectx.conn,
+        ectx.clients.do_send(SetActiveWindow {
             config: ectx.config,
             window: Some(ectx.event.event()),
         });

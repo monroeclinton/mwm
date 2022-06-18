@@ -1,7 +1,7 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
 use std::sync::Arc;
-use actix::{Actor, Context, Handler, Message, Supervised, SystemService};
+use actix::{Actor, Context, Handler, Message};
 
 #[derive(Clone, PartialEq)]
 pub struct Client {
@@ -13,25 +13,25 @@ pub struct Client {
 }
 
 pub struct Clients {
+    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub clients: Vec<Client>,
     pub active_workspace: u8,
     pub active_window: Option<xcb::Window>,
 }
 
-impl Default for Clients {
-    fn default() -> Self {
+impl Clients {
+    pub fn new(conn: Arc<xcb_util::ewmh::Connection>) -> Self {
         Self {
+            conn,
             clients: vec![],
             active_workspace: 1,
             active_window: None,
         }
     }
-}
 
-impl Clients {
-    fn set_client_list(&mut self, conn: &xcb_util::ewmh::Connection) {
+    fn set_client_list(&mut self) {
         xcb_util::ewmh::set_client_list(
-            &conn,
+            &self.conn,
             0,
             &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>()
         );
@@ -42,11 +42,7 @@ impl Actor for Clients {
     type Context = Context<Self>;
 }
 
-impl Supervised for Clients {}
-impl SystemService for Clients {}
-
 pub struct CreateClient {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -58,22 +54,26 @@ impl Handler<CreateClient> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: CreateClient, _ctx: &mut Self::Context) -> Self::Result {
-        let cookie = xcb_util::ewmh::get_wm_window_type(&msg.conn, msg.window)
-            .get_reply();
+        let cookie = xcb_util::ewmh::get_wm_window_type(
+            &self.conn,
+            msg.window
+        ).get_reply();
 
         let mut controlled = true;
 
         if let Ok(reply) = cookie {
             let atoms = reply.atoms();
             for atom in atoms {
-                if *atom == msg.conn.WM_WINDOW_TYPE_DOCK() {
+                if *atom == self.conn.WM_WINDOW_TYPE_DOCK() {
                     controlled = false;
                 }
             }
         }
 
-        let cookie = xcb_util::ewmh::get_wm_strut_partial(&msg.conn, msg.window)
-            .get_reply();
+        let cookie = xcb_util::ewmh::get_wm_strut_partial(
+            &self.conn,
+            msg.window
+        ).get_reply();
 
         // TODO: Add other paddings
         let mut padding_top = 0;
@@ -97,12 +97,11 @@ impl Handler<CreateClient> for Clients {
             padding_top,
         });
 
-        self.set_client_list(&msg.conn);
+        self.set_client_list();
     }
 }
 
 pub struct DestroyClient {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -116,7 +115,7 @@ impl Handler<DestroyClient> for Clients {
     fn handle(&mut self, msg: DestroyClient, _ctx: &mut Self::Context) -> Self::Result {
         self.clients.retain(|c| c.window != msg.window);
 
-        self.set_client_list(&msg.conn);
+        self.set_client_list();
     }
 }
 
@@ -135,7 +134,6 @@ impl Handler<GetClients> for Clients {
 }
 
 pub struct ResizeClients {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub config: Arc<Config>,
 }
 
@@ -147,7 +145,7 @@ impl Handler<ResizeClients> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: ResizeClients, _ctx: &mut Self::Context) -> Self::Result {
-        let screen = get_screen(&msg.conn);
+        let screen = get_screen(&self.conn);
 
         let screen_width = screen.width_in_pixels() as usize;
         let screen_height = screen.height_in_pixels() as usize;
@@ -191,7 +189,7 @@ impl Handler<ResizeClients> for Clients {
             }
 
             xcb::configure_window(
-                &msg.conn,
+                &self.conn,
                 client.window,
                 &[
                     (xcb::CONFIG_WINDOW_X as u16, x as u32),
@@ -203,12 +201,11 @@ impl Handler<ResizeClients> for Clients {
             );
         }
 
-        msg.conn.flush();
+        self.conn.flush();
     }
 }
 
 pub struct HideWindow {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
 }
 
@@ -223,7 +220,7 @@ impl Handler<HideWindow> for Clients {
         for mut client in self.clients.iter_mut() {
             if msg.window == client.window {
                 if client.visible {
-                    xcb::unmap_window(&msg.conn, client.window);
+                    xcb::unmap_window(&self.conn, client.window);
                 }
 
                 client.visible = false;
@@ -231,12 +228,11 @@ impl Handler<HideWindow> for Clients {
             }
         }
 
-        msg.conn.flush();
+        self.conn.flush();
     }
 }
 
 pub struct SetControlledStatus {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub window: xcb::Window,
     pub status: bool,
 }
@@ -259,7 +255,6 @@ impl Handler<SetControlledStatus> for Clients {
 }
 
 pub struct SetActiveWorkspace {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub workspace: u8,
 }
 
@@ -276,13 +271,13 @@ impl Handler<SetActiveWorkspace> for Clients {
         for mut client in self.clients.iter_mut().filter(|c| c.controlled) {
             if Some(self.active_workspace) == client.workspace {
                 if !client.visible {
-                    xcb::map_window(&msg.conn, client.window);
+                    xcb::map_window(&self.conn, client.window);
                 }
 
                 client.visible = true;
             } else {
                 if client.visible {
-                    xcb::unmap_window(&msg.conn, client.window);
+                    xcb::unmap_window(&self.conn, client.window);
                 }
 
                 client.visible = false;
@@ -290,17 +285,16 @@ impl Handler<SetActiveWorkspace> for Clients {
         }
 
         xcb_util::ewmh::set_current_desktop(
-            &msg.conn,
+            &self.conn,
             0,
             self.active_workspace as u32,
         );
 
-        msg.conn.flush();
+        self.conn.flush();
     }
 }
 
 pub struct SetActiveWindow {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub config: Arc<Config>,
     pub window: Option<xcb::Window>,
 }
@@ -318,35 +312,34 @@ impl Handler<SetActiveWindow> for Clients {
             let inactive_border = msg.config.inactive_border;
 
             xcb::set_input_focus(
-                &msg.conn,
+                &self.conn,
                 xcb::INPUT_FOCUS_PARENT as u8,
                 window,
                 xcb::CURRENT_TIME,
             );
 
-            xcb::change_window_attributes(&msg.conn, window, &[(xcb::CW_BORDER_PIXEL, active_border)]);
+            xcb::change_window_attributes(&self.conn, window, &[(xcb::CW_BORDER_PIXEL, active_border)]);
 
             for client in self.clients.iter() {
                 if client.window != window {
                     xcb::change_window_attributes(
-                        &msg.conn,
+                        &self.conn,
                         client.window,
                         &[(xcb::CW_BORDER_PIXEL, inactive_border)],
                     );
                 }
             }
 
-            xcb_util::ewmh::set_active_window(&msg.conn, 0, window);
+            xcb_util::ewmh::set_active_window(&self.conn, 0, window);
         } else {
-            xcb_util::ewmh::set_active_window(&msg.conn, 0, 0);
+            xcb_util::ewmh::set_active_window(&self.conn, 0, 0);
         }
 
-        msg.conn.flush();
+        self.conn.flush();
     }
 }
 
 pub struct HandleWindowAction {
-    pub conn: Arc<xcb_util::ewmh::Connection>,
     pub config: Arc<Config>,
     pub action: Action,
     pub window: xcb::Window,

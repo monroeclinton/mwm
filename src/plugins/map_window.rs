@@ -1,7 +1,6 @@
-use crate::client::{Clients, CreateClient};
+use crate::client::CreateClient;
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
-use actix::SystemService;
 use anyhow::Result;
 
 #[derive(Default)]
@@ -21,8 +20,7 @@ impl PluginHandler for MapWindow {
 
         ectx.conn.flush();
 
-        Clients::from_registry().do_send(CreateClient {
-            conn: ectx.conn,
+        ectx.clients.do_send(CreateClient {
             window: ectx.event.window(),
         });
 

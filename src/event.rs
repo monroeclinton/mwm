@@ -1,3 +1,4 @@
+use crate::client::Clients;
 use crate::config::Config;
 use std::sync::Arc;
 use std::convert::TryFrom;
@@ -6,6 +7,7 @@ use actix::prelude::*;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct EventContext<E> {
+    pub clients: Addr<Clients>,
     pub config: Arc<Config>,
     pub conn: Arc<xcb_util::ewmh::Connection>,
     pub event: E,
@@ -36,6 +38,7 @@ impl Clone for EventContext<xcb::ClientMessageEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -61,6 +64,7 @@ impl Clone for EventContext<xcb::KeyPressEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -84,6 +88,7 @@ impl Clone for EventContext<xcb::ConfigureRequestEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -96,6 +101,7 @@ impl Clone for EventContext<xcb::MapRequestEvent> {
         let event = xcb::MapRequestEvent::new(self.event.parent(), self.event.window());
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -113,6 +119,7 @@ impl Clone for EventContext<xcb::PropertyNotifyEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -139,6 +146,7 @@ impl Clone for EventContext<xcb::EnterNotifyEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -155,6 +163,7 @@ impl Clone for EventContext<xcb::UnmapNotifyEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,
@@ -170,6 +179,7 @@ impl Clone for EventContext<xcb::DestroyNotifyEvent> {
         );
 
         Self {
+            clients: self.clients.clone(),
             config: self.config.clone(),
             conn: self.conn.clone(),
             event,

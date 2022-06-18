@@ -1,7 +1,6 @@
-use crate::client::{Clients, SetControlledStatus};
+use crate::client::SetControlledStatus;
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
-use actix::SystemService;
 
 #[derive(Default)]
 pub struct ConfigureWindow;
@@ -41,8 +40,7 @@ impl PluginHandler for ConfigureWindow {
 
                 for atom in atoms {
                     if *atom == ectx.conn.WM_WINDOW_TYPE_DOCK() {
-                        Clients::from_registry().do_send(SetControlledStatus {
-                            conn: ectx.conn.clone(),
+                        ectx.clients.do_send(SetControlledStatus {
                             window: ectx.event.window(),
                             status: false,
                         });
