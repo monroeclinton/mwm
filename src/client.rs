@@ -142,15 +142,20 @@ impl Handler<ResizeClients> for Clients {
         let gap = self.config.border_gap as usize;
         let gap_double = gap * 2;
 
-        let visible_clients = self.clients
-            .iter()
-            .filter(|&c| c.visible && c.controlled)
-            .cloned()
-            .collect::<Vec<Client>>();
-
         let padding_top = self.clients.iter()
             .filter(|&c| c.visible)
             .fold(0, |acc, c| acc + c.padding_top) as usize;
+
+        let max_clients = (screen_height - padding_top) / (
+            gap_double + border_double
+        ) - 1;
+
+        let visible_clients = self.clients
+            .iter()
+            .filter(|&c| c.visible && c.controlled)
+            .take(max_clients)
+            .cloned()
+            .collect::<Vec<Client>>();
 
         let clients_length = visible_clients.len();
         let available_height = screen_height - padding_top;
