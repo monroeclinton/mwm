@@ -18,4 +18,4 @@ font_active_color = 0x282c34
 background_color = 0x282c34
 background_active_color = 0x56b6c2
 
-workspace_padding = 15
+workspace_width = 30

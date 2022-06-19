@@ -11,7 +11,7 @@ pub struct Config {
     pub font_active_color: u32,
     pub background_color: u32,
     pub background_active_color: u32,
-    pub workspace_padding: u32,
+    pub workspace_width: u32,
 }
 
 pub fn get_config() -> Config {

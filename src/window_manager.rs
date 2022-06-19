@@ -27,6 +27,7 @@ impl Default for WindowManager {
             conn.SUPPORTED(),
             conn.CLIENT_LIST(),
             conn.NUMBER_OF_DESKTOPS(),
+            conn.DESKTOP_NAMES(),
             conn.CURRENT_DESKTOP(),
             conn.ACTIVE_WINDOW(),
         ]);

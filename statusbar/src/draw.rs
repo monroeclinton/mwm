@@ -111,15 +111,17 @@ impl Draw {
     }
 
     fn workspaces(&self) {
-        let workspaces = xcb_util::ewmh::get_number_of_desktops(
+        let reply = xcb_util::ewmh::get_desktop_names(
             &self.xcb_conn,
             0,
-        ).get_reply().unwrap_or(0);
+        ).get_reply().expect("Unable to get desktop names.");
+
+        let workspaces = reply.strings();
 
         let active_workspace = xcb_util::ewmh::get_current_desktop(
             &self.xcb_conn,
             0
-        ).get_reply().unwrap_or(0);
+        ).get_reply().unwrap_or(0) as usize;
 
         let context = cairo::Context::new(&self.surface)
             .expect("Unable to find context of statusbar surface.");
@@ -130,52 +132,47 @@ impl Draw {
             cairo::FontWeight::Normal
         ).expect("Unable to create font face in statusbar.");
 
-        let workspace_padding = self.config.workspace_padding as f64;
+        let bar_height = self.config.height as f64;
+        let workspace_width = self.config.workspace_width as f64;
+        let mut offset = 0.0;
 
-        let mut offset = workspace_padding / 2.0;
-
-        let max_width = (1..=workspaces)
-            .map(|i| {
-                let workspace = i.to_string();
-                let extents = context.text_extents(workspace.as_str())
-                    .expect("Unable to find text text extents of statusbar workspace.");
-
-                extents.width
-            })
-            .reduce(f64::max)
-            .unwrap_or(0.0);
-
-        for i in 1..=workspaces {
-            let workspace = i.to_string();
-
-            if i == active_workspace {
+        let mut workspace_index = 1;
+        for workspace in workspaces {
+            if workspace_index == active_workspace {
                 set_source_rgb(&context, self.config.background_active_color);
 
                 context.rectangle(
-                    offset - workspace_padding / 2.0,
+                    offset,
                     0.0,
-                    max_width + workspace_padding,
-                    20.0
+                    workspace_width,
+                    bar_height
                 );
 
                 context.fill()
                     .expect("Unable to create active rectangle.");
             }
 
+            let extents = context.text_extents(workspace)
+                .expect("Unable to find text text extents of statusbar workspace.");
+
             context.set_font_face(&font_face);
             context.set_font_size(self.config.font_size as f64);
 
-            if i == active_workspace {
+            if workspace_index == active_workspace {
                 set_source_rgb(&context, self.config.font_active_color);
             } else {
                 set_source_rgb(&context, self.config.font_color);
             }
 
-            context.move_to(offset, (self.config.height as f64 + max_width) / 2.0);
-            context.show_text(workspace.as_str())
+            context.move_to(
+                offset + ((workspace_width - extents.width) / 2.0),
+                (bar_height + extents.height) / 2.0
+            );
+            context.show_text(workspace)
                 .expect("Cannot position text on surface in statusbar.");
 
-            offset += max_width + workspace_padding;
+            offset += workspace_width;
+            workspace_index += 1;
         }
 
         self.surface.flush();

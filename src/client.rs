@@ -38,6 +38,38 @@ impl Clients {
             0,
             &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>()
         );
+
+        let names = (1..=9)
+            .map(|i: u8| {
+                let count = self.clients.iter()
+                    .filter(|c| c.workspace == Some(i))
+                    .count();
+
+                let count_string = count.to_string()
+                    .replace("0", "⁰")
+                    .replace("1", "¹")
+                    .replace("2", "²")
+                    .replace("3", "³")
+                    .replace("4", "⁴")
+                    .replace("5", "⁵")
+                    .replace("6", "⁶")
+                    .replace("7", "⁷")
+                    .replace("8", "⁸")
+                    .replace("9", "⁹");
+
+                if count > 0 {
+                    format!("{}{}", i.to_string(), count_string)
+                } else {
+                    i.to_string()
+                }
+            })
+            .collect::<Vec<String>>();
+
+        xcb_util::ewmh::set_desktop_names(
+            &self.conn,
+            0,
+            names.iter().map(|s| s.as_ref()),
+        );
     }
 }
 
