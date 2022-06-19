@@ -57,29 +57,34 @@ impl Draw {
         set_source_rgb(&context, self.config.background_color);
         context.paint().expect("Unable to clear surface.");
 
-        self.window_title();
+        self.bar_title();
         self.workspaces();
     }
 
-    fn window_title(&self) {
-        let cookie = xcb_util::ewmh::get_active_window(
+    fn bar_title(&self) {
+        let reply = xcb_util::ewmh::get_active_window(
             &self.xcb_conn,
             0
         ).get_reply();
 
-        let active_window = match cookie {
-            Ok(window) => window,
-            _ => return,
+        let window_name = if let Ok(active_window) = reply {
+            let reply = xcb_util::ewmh::get_wm_name(
+                &self.xcb_conn,
+                active_window
+            ).get_reply();
+
+            match reply {
+                Ok(name) => Some(name.string().to_string()),
+                _ => None,
+            }
+        } else {
+            None
         };
 
-        let cookie = xcb_util::ewmh::get_wm_name(
-            &self.xcb_conn,
-            active_window
-        ).get_reply();
-
-        let window_name = match cookie {
-            Ok(name) => name.string().to_string(),
-            _ => return,
+        let title = if let Some(name) = window_name {
+            format!("[{}] {}@{}", name, whoami::username(), whoami::hostname())
+        } else {
+            format!("{}@{}", whoami::username(), whoami::hostname())
         };
 
         let screen = self.xcb_conn.get_setup().roots().next()
@@ -94,7 +99,7 @@ impl Draw {
             cairo::FontWeight::Normal
         ).expect("Unable to create font face in statusbar.");
 
-        let extents = context.text_extents(window_name.as_str())
+        let extents = context.text_extents(title.as_str())
             .expect("Unable to find text text extents of statusbar workspace.");
 
         context.set_font_face(&font_face);
@@ -106,7 +111,7 @@ impl Draw {
 
         set_source_rgb(&context, self.config.font_color);
 
-        context.show_text(window_name.as_str())
+        context.show_text(title.as_str())
             .expect("Cannot position text on surface in statusbar.");
     }
 
