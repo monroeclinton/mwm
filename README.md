@@ -1,4 +1,4 @@
-# mwm 
+# mwm
 My window manager that is a work in progress. Currently hacky
 
 # Installation
@@ -13,33 +13,9 @@ exec mwm
 
 # Configuring
 
-Edit the `config.toml`:
-```toml
-# Border thickness
-border_thickness = 2
-
-# Space between windows
-border_gap = 4
-
-# Color of border around windows when active
-active_border = 0x3b7a82
-
-# Color of border around windows when inactive
-inactive_border = 0x444444
-
-# List of commands
-[[commands]]
-modifier = 0x0008 # key: l-alt
-keysym = 0x0070 # key: p
-command = "st"
-
-```
-
-# Planned features
-- Multithreading (can be useful in certain cases)
-- Status bar
-- EWMH compliant
-- Customizable layouts
+There are config.toml files in the `src` and `statusbar` directories
+that you can customize. This should eventually read from `~/.config`
+but right now it reads from the project directory.
 
 # Screenshot
 
