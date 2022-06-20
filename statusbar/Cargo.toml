@@ -8,8 +8,10 @@ actix = "0.13.0"
 anyhow = "1.0.56"
 cairo-rs = { version = "0.15.11", features = ["xcb"] }
 cairo-sys-rs = "0.15.1"
+chrono = "0.4.19"
 futures = "0.3.21"
 serde = { version = "1.0.137", features = ["derive"] }
+systemstat = "0.1.11"
 tokio = { version = "1.18.2", features = ["full"] }
 toml = "0.5.9"
 whoami = "1.2.1"
