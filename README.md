@@ -19,4 +19,4 @@ but right now it reads from the project directory.
 
 # Screenshot
 
-![Screenshot of mwm](screenshots/1.png)
+![Screenshot of mwm](screenshots/2.png)
