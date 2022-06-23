@@ -1,0 +1,32 @@
+# Size of window
+width = 400
+
+# Border around window
+border_thickness = 2
+
+# Color of border
+border_color = 0x56b6c2
+
+# Font size on window
+font_size = 16
+
+# Font family of text
+font_family = "monospace"
+
+# Colors for font
+font_color = 0xabb2bf
+font_active_color = 0x282c34
+
+# Colors for window
+background_color = 0x282c34
+background_active_color = 0x56b6c2
+
+# Keysym to close window
+close_keysym = 0xff1b # key: escape
+
+# Keysym to move up
+up_keysym = 0x006b # key: k
+
+# Keysym to move down
+down_keysym = 0x006a # key: j
+
