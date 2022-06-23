@@ -325,6 +325,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "launcher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cairo-rs",
+ "cairo-sys-rs",
+ "serde",
+ "toml",
+ "xcb",
+ "xcb-util",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,13 @@
+[package]
+name = "launcher"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.56"
+cairo-rs = { version = "0.15.11", features = ["xcb"] }
+cairo-sys-rs = "0.15.1"
+serde = { version = "1.0.137", features = ["derive"] }
+toml = "0.5.9"
+xcb = { version = "0.10.1", features = ["xkb"] }
+xcb-util = { version = "0.4.0", features = ["keysyms"] }

@@ -5,6 +5,7 @@ edition = "2018"
 
 [workspace]
 members = [
+    "launcher",
     "statusbar",
 ]
 
