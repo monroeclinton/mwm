@@ -24,6 +24,9 @@ background_active_color = 0x56b6c2
 # Keysym to close window
 close_keysym = 0xff1b # key: escape
 
+# Keysym to select
+select_keysym = 0xff0d # key: return
+
 # Keysym to move up
 up_keysym = 0x006b # key: k
 

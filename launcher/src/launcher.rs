@@ -104,6 +104,15 @@ impl Launcher {
             }
         }
 
+        if let Some(keycode) = key_symbols.get_keycode(self.config.select_keysym).next() {
+            if event.detail() == keycode {
+                if let Some(command) = self.commands.get(self.selection_index) {
+                    println!("{command}");
+                    std::process::exit(1);
+                }
+            }
+        }
+
         if let Some(keycode) = key_symbols.get_keycode(self.config.up_keysym).next() {
             if event.detail() == keycode {
                 self.draw.move_up()
