@@ -6,7 +6,7 @@ pub struct Config {
     pub width: u16,
     pub border_thickness: u16,
     pub border_color: u32,
-    pub font_size: u32,
+    pub font_size: u16,
     pub font_family: String,
     pub font_color: u32,
     pub font_active_color: u32,
