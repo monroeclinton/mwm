@@ -7,10 +7,12 @@ pub struct Launcher {
     conn: Rc<xcb::Connection>,
     config: Rc<Config>,
     draw: Draw,
+    commands: Vec<String>,
+    selection_index: usize,
 }
 
 impl Launcher {
-    pub fn new() -> Self {
+    pub fn new(commands: Vec<String>) -> Self {
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY enviroment variable.");
 
@@ -44,6 +46,7 @@ impl Launcher {
         xcb::map_window(&conn, window);
 
         xcb::configure_window(&conn, window, &[
+            (xcb::CW_EVENT_MASK as u16, xcb::EVENT_MASK_STRUCTURE_NOTIFY),
             (xcb::CONFIG_WINDOW_STACK_MODE as u16, xcb::STACK_MODE_ABOVE)
         ]);
 
@@ -66,13 +69,15 @@ impl Launcher {
             conn,
             config,
             draw,
+            commands,
+            selection_index: 0,
         }
     }
 
     pub fn run(mut self) {
-        self.draw.draw();
-
         loop {
+            self.draw.draw(&self.commands, self.selection_index);
+
             let event = match self.conn.wait_for_event() {
                 Some(e) => e,
                 _ => continue,
@@ -80,6 +85,7 @@ impl Launcher {
 
             let status = match event.response_type() {
                 xcb::KEY_PRESS => self.on_key_press(unsafe { xcb::cast_event(&event) }),
+                xcb::MAP_REQUEST => Ok(()), // Requests should cause a redraw
                 _ => continue,
             };
 
@@ -115,13 +121,21 @@ impl Launcher {
 
         if let Some(keycode) = key_symbols.get_keycode(self.config.up_keysym).next() {
             if event.detail() == keycode {
-                self.draw.move_up()
+                if self.selection_index > 0 {
+                    self.selection_index -= 1;
+                } else {
+                    self.selection_index = self.commands.len() - 1;
+                }
             }
         }
 
         if let Some(keycode) = key_symbols.get_keycode(self.config.down_keysym).next() {
             if event.detail() == keycode {
-                self.draw.move_down()
+                if self.selection_index < self.commands.len() - 1 {
+                    self.selection_index += 1;
+                } else {
+                    self.selection_index = 0;
+                }
             }
         }
 

@@ -6,7 +6,6 @@ pub struct Draw {
     config: Rc<Config>,
     surface: cairo::XCBSurface,
     window: xcb::Window,
-    selection_index: usize,
 }
 
 impl Draw {
@@ -50,13 +49,11 @@ impl Draw {
             config,
             surface,
             window,
-            selection_index: 0,
         }
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&self, commands: &Vec<String>, selection_index: usize) {
         let title = "Command:";
-        let commands = vec!["firefox", "code", "gimp", "inkscape"];
 
         let item_height = (self.config.font_size + self.config.font_size / 2) as f64;
         let window_width = self.config.width as f64;
@@ -126,7 +123,7 @@ impl Draw {
             .expect("Cannot position title text.");
 
         for (i, command) in commands.iter().enumerate() {
-            if i == self.selection_index {
+            if i == selection_index {
                 set_source_rgb(&context, self.config.background_active_color);
 
                 context.rectangle(
@@ -144,7 +141,7 @@ impl Draw {
                 set_source_rgb(&context, self.config.font_color);
             }
 
-            let extents = context.text_extents(command)
+            let extents = context.text_extents(command.as_str())
                 .expect("Unable to find text extents of command.");
 
             context.move_to(
@@ -152,27 +149,12 @@ impl Draw {
                 (item_height * (i + 2) as f64) - extents.height / 2.0
             );
 
-            context.show_text(command)
+            context.show_text(command.as_str())
                 .expect("Cannot position command text.");
         }
 
         self.surface.flush();
         self.xcb_conn.flush();
-    }
-
-    // TODO: Finish moving functions...
-    pub fn move_up(&mut self) {
-        self.selection_index += 1;
-
-        self.draw();
-    }
-
-    pub fn move_down(&mut self) {
-        if self.selection_index > 0 {
-            self.selection_index -= 1;
-        }
-
-        self.draw();
     }
 }
 
