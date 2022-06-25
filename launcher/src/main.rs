@@ -1,5 +1,5 @@
 mod config;
-mod draw;
+mod surface;
 mod launcher;
 
 use launcher::Launcher;

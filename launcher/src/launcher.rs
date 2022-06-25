@@ -1,13 +1,15 @@
 use crate::config::{Config, get_config};
-use crate::draw::Draw;
-use std::rc::Rc;
+use crate::surface::Surface;
 use anyhow::Result;
 
 pub struct Launcher {
-    conn: Rc<xcb::Connection>,
-    config: Rc<Config>,
-    draw: Draw,
+    conn: xcb::Connection,
+    window: xcb::Window,
+    config: Config,
+    surface: Surface,
     commands: Vec<String>,
+    screen_width: u16,
+    screen_height: u16,
     selection_index: usize,
 }
 
@@ -23,8 +25,11 @@ impl Launcher {
 
         let window = conn.generate_id();
 
-        let x = (screen.width_in_pixels() - config.width) / 2;
-        let y = screen.height_in_pixels() / 2;
+        let screen_width = screen.width_in_pixels();
+        let screen_height = screen.height_in_pixels();
+
+        let x = (screen_width - config.width) / 2;
+        let y = screen_height / 2;
 
         xcb::create_window(
             &conn,
@@ -61,22 +66,50 @@ impl Launcher {
 
         conn.flush();
 
-        let conn = Rc::new(conn);
-        let config = Rc::new(config);
-        let draw = Draw::new(conn.clone(), config.clone(), window);
+        // Uses xcb connection which will live length of program.
+        let cairo_conn = unsafe {
+            cairo::XCBConnection::from_raw_none(conn.get_raw_conn() as _)
+        };
+
+        // I wish there was a better way to do this
+        // https://xcb.freedesktop.org/xlibtoxcbtranslationguide/
+        // https://tronche.com/gui/x/xlib/window/visual-types.html
+        let mut visual_type = screen.allowed_depths()
+            .find_map(|depth| {
+                depth.visuals().find(|visual| screen.root_visual() == visual.visual_id())
+            })
+            .expect("Unable to find visual type of screen.");
+
+        let visual = unsafe {
+            cairo::XCBVisualType::from_raw_none(&mut visual_type.base as *mut _ as _)
+        };
+
+        let drawable = cairo::XCBDrawable(window);
+        let surface = cairo::XCBSurface::create(
+            &cairo_conn,
+            &drawable,
+            &visual,
+            config.width as i32,
+            1
+        ).expect("Unable to create Cairo surface.");
+
+        let surface = Surface::new(surface);
 
         Self {
             conn,
+            window,
             config,
-            draw,
+            surface,
             commands,
+            screen_height,
+            screen_width,
             selection_index: 0,
         }
     }
 
     pub fn run(mut self) {
         loop {
-            self.draw.draw(&self.commands, self.selection_index);
+            self.draw();
 
             let event = match self.conn.wait_for_event() {
                 Some(e) => e,
@@ -140,5 +173,55 @@ impl Launcher {
         }
 
         Ok(())
+    }
+
+    fn draw(&mut self) {
+        let window_height = self.window_height() as f64;
+        let item_height = self.item_height() as f64;
+
+        self.configure_window();
+        self.surface.clear_surface(&self.config);
+
+        self.surface.draw_title(
+            &self.config, 
+            window_height, 
+            item_height
+        );
+
+        self.surface.draw_items(
+            &self.commands,
+            &self.config,
+            item_height,
+            self.selection_index,
+        );
+
+        self.surface.flush();
+        self.conn.flush();
+    }
+
+    fn configure_window(&self) {
+        let window_height = self.window_height();
+        let window_width = self.config.width;
+ 
+        let x = (self.screen_width - window_width) / 2;
+        let y = (self.screen_height - window_height) / 2;
+
+        xcb::configure_window(
+            &self.conn,
+            self.window,
+            &[
+                (xcb::CONFIG_WINDOW_X as u16, x as u32),
+                (xcb::CONFIG_WINDOW_Y as u16, y as u32),
+                (xcb::CONFIG_WINDOW_HEIGHT as u16, window_height as u32),
+            ],
+        );
+    }
+
+    fn item_height(&self) -> u16 {
+        self.config.font_size + self.config.font_size / 2
+    }
+
+    fn window_height(&self) -> u16 {
+        self.item_height() * (self.commands.len() + 1) as u16
     }
 }
