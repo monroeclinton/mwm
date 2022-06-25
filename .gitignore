@@ -1,5 +1,7 @@
 # build
 /target/
+/launcher/target/
+/statusbar/target/
 
 # IDE
 /.idea/
