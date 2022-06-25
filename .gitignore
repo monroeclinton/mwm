@@ -1,6 +1,6 @@
 # build
 /target/
-/launcher/target/
+/selector/target/
 /statusbar/target/
 
 # IDE

@@ -2,7 +2,7 @@ use crate::config::{Config, get_config};
 use crate::surface::Surface;
 use anyhow::Result;
 
-pub struct Launcher {
+pub struct Selector {
     conn: xcb::Connection,
     window: xcb::Window,
     config: Config,
@@ -13,7 +13,7 @@ pub struct Launcher {
     selection_index: usize,
 }
 
-impl Launcher {
+impl Selector {
     pub fn new(commands: Vec<String>) -> Self {
         let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY enviroment variable.");

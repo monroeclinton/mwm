@@ -19,7 +19,7 @@ pub struct Config {
 }
 
 pub fn get_config() -> Config {
-    let toml_string = fs::read_to_string("launcher/config.toml")
+    let toml_string = fs::read_to_string("selector/config.toml")
         .expect("Unable to read config.toml file.");
 
     toml::from_str(&toml_string)

@@ -85,7 +85,7 @@ impl Surface {
         let window_width = config.width as f64;
 
         let context = cairo::Context::new(&self.surface)
-            .expect("Unable to find context of launcher surface.");
+            .expect("Unable to find context of surface.");
 
         let font_face = cairo::FontFace::toy_create(
             config.font_family.as_str(),

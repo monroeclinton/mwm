@@ -1,8 +1,8 @@
 mod config;
 mod surface;
-mod launcher;
+mod selector;
 
-use launcher::Launcher;
+use selector::Selector;
 use std::io::{self, BufRead};
 
 fn main() {
@@ -17,5 +17,5 @@ fn main() {
         }
     }
 
-    (Launcher::new(commands)).run();
+    (Selector::new(commands)).run();
 }
