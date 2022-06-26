@@ -8,8 +8,7 @@ pub struct Selector {
     config: Config,
     surface: Surface,
     commands: Vec<String>,
-    screen_width: u16,
-    screen_height: u16,
+    search_input: String,
     selection_index: usize,
 }
 
@@ -101,8 +100,7 @@ impl Selector {
             config,
             surface,
             commands,
-            screen_height,
-            screen_width,
+            search_input: String::new(),
             selection_index: 0,
         }
     }
@@ -201,17 +199,11 @@ impl Selector {
 
     fn configure_window(&self) {
         let window_height = self.window_height();
-        let window_width = self.config.width;
  
-        let x = (self.screen_width - window_width) / 2;
-        let y = (self.screen_height - window_height) / 2;
-
         xcb::configure_window(
             &self.conn,
             self.window,
             &[
-                (xcb::CONFIG_WINDOW_X as u16, x as u32),
-                (xcb::CONFIG_WINDOW_Y as u16, y as u32),
                 (xcb::CONFIG_WINDOW_HEIGHT as u16, window_height as u32),
             ],
         );
