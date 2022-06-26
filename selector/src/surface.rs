@@ -26,6 +26,7 @@ impl Surface {
     pub fn draw_title(
         &mut self,
         config: &Config,
+        input: &str,
         window_height: f64,
         item_height: f64,
   ) {

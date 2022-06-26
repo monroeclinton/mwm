@@ -1,5 +1,7 @@
 use crate::config::{Config, get_config};
+use crate::keysym::Keysym;
 use crate::surface::Surface;
+use std::convert::TryFrom;
 use anyhow::Result;
 
 pub struct Selector {
@@ -150,7 +152,7 @@ impl Selector {
             }
         }
 
-        if let Some(keycode) = key_symbols.get_keycode(self.config.up_keysym).next() {
+        if let Some(keycode) = key_symbols.get_keycode(Keysym::XK_BackSpace as u32).next() {
             if event.detail() == keycode {
                 if self.selection_index > 0 {
                     self.selection_index -= 1;
@@ -170,24 +172,35 @@ impl Selector {
             }
         }
 
+        let keysym = key_symbols.get_keysym(event.detail(), event.state() as i32);
+
+        if let Ok(keysym) = Keysym::try_from(keysym) {
+            self.search_input.push_str(keysym.to_string().as_str());
+        }
+
         Ok(())
     }
 
     fn draw(&mut self) {
         let window_height = self.window_height() as f64;
         let item_height = self.item_height() as f64;
+        let commands = self.commands
+            .iter()
+            .filter(|c| c.starts_with(self.search_input.as_str()))
+            .collect();
 
         self.configure_window();
         self.surface.clear_surface(&self.config);
 
         self.surface.draw_title(
             &self.config, 
+            &self.search_input,
             window_height, 
             item_height
         );
 
         self.surface.draw_items(
-            &self.commands,
+            &commands,
             &self.config,
             item_height,
             self.selection_index,
@@ -214,6 +227,12 @@ impl Selector {
     }
 
     fn window_height(&self) -> u16 {
-        self.item_height() * (self.commands.len() + 1) as u16
+        let total_commands = self.commands
+            .iter()
+            .filter(|c| c.starts_with(self.search_input.as_str()))
+            .collect::<Vec<&String>>()
+            .len();
+
+        self.item_height() * (total_commands + 1) as u16
     }
 }

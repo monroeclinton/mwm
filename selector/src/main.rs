@@ -1,4 +1,5 @@
 mod config;
+mod keysym;
 mod surface;
 mod selector;
 
