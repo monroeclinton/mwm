@@ -12,6 +12,7 @@ pub struct Config {
     pub font_active_color: u32,
     pub background_color: u32,
     pub background_active_color: u32,
+    pub modifier: u16,
     pub close_keysym: u32,
     pub select_keysym: u32,
     pub up_keysym: u32,

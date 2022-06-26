@@ -136,7 +136,7 @@ impl Selector {
 
     fn on_key_press(&mut self, event: &xcb::KeyPressEvent) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&self.conn);
-        
+
         if let Some(keycode) = key_symbols.get_keycode(self.config.close_keysym).next() {
             if event.detail() == keycode {
                 std::process::exit(1);
@@ -154,21 +154,34 @@ impl Selector {
 
         if let Some(keycode) = key_symbols.get_keycode(Keysym::XK_BackSpace as u32).next() {
             if event.detail() == keycode {
+                // At least no memory allocation :*)
+                // (I expect input to be not that long)
+                self.search_input.pop();
+                return Ok(());
+            }
+        }
+
+        if let Some(keycode) = key_symbols.get_keycode(self.config.up_keysym).next() {
+            if event.detail() == keycode && event.state() == self.config.modifier {
                 if self.selection_index > 0 {
                     self.selection_index -= 1;
                 } else {
                     self.selection_index = self.commands.len() - 1;
                 }
+
+                return Ok(());
             }
         }
 
         if let Some(keycode) = key_symbols.get_keycode(self.config.down_keysym).next() {
-            if event.detail() == keycode {
+            if event.detail() == keycode && event.state() == self.config.modifier {
                 if self.selection_index < self.commands.len() - 1 {
                     self.selection_index += 1;
                 } else {
                     self.selection_index = 0;
                 }
+
+                return Ok(());
             }
         }
 
@@ -193,9 +206,9 @@ impl Selector {
         self.surface.clear_surface(&self.config);
 
         self.surface.draw_title(
-            &self.config, 
+            &self.config,
             &self.search_input,
-            window_height, 
+            window_height,
             item_height
         );
 
@@ -212,7 +225,7 @@ impl Selector {
 
     fn configure_window(&self) {
         let window_height = self.window_height();
- 
+
         xcb::configure_window(
             &self.conn,
             self.window,

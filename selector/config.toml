@@ -21,6 +21,9 @@ font_active_color = 0x282c34
 background_color = 0x282c34
 background_active_color = 0x56b6c2
 
+# Modifier for movement keysyms
+modifier = 0x0040 # key: l-super
+
 # Keysym to close window
 close_keysym = 0xff1b # key: escape
 

@@ -73,11 +73,21 @@ impl Surface {
 
         context.show_text(title)
             .expect("Cannot position title text.");
+
+        set_source_rgb(&context, config.font_color);
+
+        context.move_to(
+            title_width + font_size,
+            (item_height + extents.height) / 2.0
+        );
+
+        context.show_text(input)
+            .expect("Cannot position input text.");
     }
 
     pub fn draw_items(
-        &self, 
-        commands: &Vec<String>, 
+        &self,
+        commands: &Vec<&String>,
         config: &Config,
         item_height: f64,
         selection_index: usize,
