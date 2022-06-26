@@ -68,6 +68,13 @@ impl Actor for WindowManager {
                 x11::keysym::XK_0 + workspace as u32,
                 screen.root()
             );
+
+            grab_key(
+                &self.conn,
+                self.config.workspace_move_window_modifier,
+                x11::keysym::XK_0 + workspace as u32,
+                screen.root()
+            );
         }
 
         xcb_util::ewmh::set_number_of_desktops(&self.conn, 0, 9);

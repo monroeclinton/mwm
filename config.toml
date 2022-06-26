@@ -13,6 +13,9 @@ inactive_border = 0x4b5263
 # What modifier to switch workspace
 workspace_modifier = 0x0008 # key: l-alt
 
+# What modifier to move window to workspace
+workspace_move_window_modifier = 0x0009 # key: l-alt + shift
+
 # Autostart the following programs
 autostart = [
     "./target/debug/statusbar"

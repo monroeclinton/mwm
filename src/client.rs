@@ -363,6 +363,39 @@ impl Handler<SetActiveWindow> for Clients {
     }
 }
 
+pub struct SetWindowWorkspace {
+    pub window: xcb::Window,
+    pub workspace: Option<u8>,
+}
+
+impl Message for SetWindowWorkspace {
+    type Result = ();
+}
+
+impl Handler<SetWindowWorkspace> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: SetWindowWorkspace, ctx: &mut Self::Context) -> Self::Result {
+        for client in self.clients.iter_mut() {
+            if client.window == msg.window {
+                client.workspace = msg.workspace;
+
+                if client.controlled && Some(self.active_workspace) == msg.workspace {
+                    client.visible = true;
+                } else {
+                    client.visible = false;
+                }
+
+                break;
+            }
+        }
+
+        self.set_client_list();
+
+        ctx.notify(ResizeClients);
+    }
+}
+
 pub struct HandleWindowAction {
     pub action: Action,
     pub window: xcb::Window,

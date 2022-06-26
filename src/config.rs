@@ -28,6 +28,7 @@ pub struct Config {
     pub active_border: u32,
     pub inactive_border: u32,
     pub workspace_modifier: u16,
+    pub workspace_move_window_modifier: u16,
     pub autostart: Vec<String>,
     pub actions: Vec<ActionKeyPress>,
     pub commands: Vec<Command>,

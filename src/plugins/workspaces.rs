@@ -1,4 +1,4 @@
-use crate::client::{SetActiveWorkspace, SetActiveWindow};
+use crate::client::{SetActiveWorkspace, SetActiveWindow, SetWindowWorkspace};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -27,7 +27,7 @@ impl PluginHandler for Workspaces {
                 .next()
                 .expect("Unknown keycode found in workspaces plugin.");
 
-            if keycode == ectx.event.detail() && ectx.config.workspace_modifier == ectx.event.state() {
+            if keycode == ectx.event.detail() {
                 active_workspace = Some(workspace);
                 break;
             }
@@ -36,9 +36,18 @@ impl PluginHandler for Workspaces {
         drop(key_symbols);
 
         if let Some(workspace) = active_workspace {
-            ectx.clients.do_send(SetActiveWorkspace {
-                workspace,
-            });
+            if ectx.config.workspace_modifier == ectx.event.state() {
+                ectx.clients.do_send(SetActiveWorkspace {
+                    workspace,
+                });
+            }
+
+            if ectx.config.workspace_move_window_modifier == ectx.event.state() {
+                ectx.clients.do_send(SetWindowWorkspace {
+                    window: ectx.event.child(),
+                    workspace: Some(workspace),
+                });
+            }
 
             ectx.clients.do_send(SetActiveWindow {
                 window: None,
