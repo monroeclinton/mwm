@@ -4,6 +4,9 @@ use crate::surface::Surface;
 use std::convert::TryFrom;
 use anyhow::Result;
 
+// Max items to show in list
+const MAX_ITEMS: usize = 5;
+
 pub struct Selector {
     conn: xcb::Connection,
     window: xcb::Window,
@@ -197,10 +200,6 @@ impl Selector {
     fn draw(&mut self) {
         let window_height = self.window_height() as f64;
         let item_height = self.item_height() as f64;
-        let commands = self.commands
-            .iter()
-            .filter(|c| c.starts_with(self.search_input.as_str()))
-            .collect();
 
         self.configure_window();
         self.surface.clear_surface(&self.config);
@@ -212,11 +211,18 @@ impl Selector {
             item_height
         );
 
+        let commands = self.filtered_commands();
+
+        let mut selection_index = 0;
+        if self.selection_index > self.commands.len() - MAX_ITEMS {
+            selection_index = self.selection_index - (self.commands.len() - MAX_ITEMS);
+        }
+
         self.surface.draw_items(
             &commands,
             &self.config,
             item_height,
-            self.selection_index,
+            selection_index
         );
 
         self.surface.flush();
@@ -235,16 +241,21 @@ impl Selector {
         );
     }
 
+    fn filtered_commands(&self) -> Vec<&String> {
+        self.commands
+            .iter()
+            .filter(|c| c.starts_with(self.search_input.as_str()))
+            .skip(std::cmp::min(self.commands.len() - MAX_ITEMS as usize, self.selection_index))
+            .take(5)
+            .collect::<Vec<&String>>()
+    }
+
     fn item_height(&self) -> u16 {
         self.config.font_size + self.config.font_size / 2
     }
 
     fn window_height(&self) -> u16 {
-        let total_commands = self.commands
-            .iter()
-            .filter(|c| c.starts_with(self.search_input.as_str()))
-            .collect::<Vec<&String>>()
-            .len();
+        let total_commands = self.filtered_commands().len();
 
         self.item_height() * (total_commands + 1) as u16
     }
