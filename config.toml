@@ -24,8 +24,13 @@ autostart = [
 # List of actions that the window manager handles
 [[actions]]
 modifier = 0x0008 # key: l-alt
+keysym = 0x006b # key: k
+action = "SelectAboveWindow"
+
+[[actions]]
+modifier = 0x0008 # key: l-alt
 keysym = 0x006a # key: j
-action = "SelectLeftWindow"
+action = "SelectBelowWindow"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt

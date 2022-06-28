@@ -359,6 +359,8 @@ impl Handler<SetActiveWindow> for Clients {
             xcb_util::ewmh::set_active_window(&self.conn, 0, 0);
         }
 
+        self.active_window = msg.window;
+
         self.conn.flush();
     }
 }
@@ -408,31 +410,46 @@ impl Message for HandleWindowAction {
 impl Handler<HandleWindowAction> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: HandleWindowAction, _ctx: &mut Self::Context) -> Self::Result {
-        let pos = self.clients
+    fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
+
+        let clients = self.clients
+            .iter()
+            .filter(|&c| c.visible && c.controlled)
+            .cloned()
+            .collect::<Vec<Client>>();
+
+        let pos = clients
             .iter()
             .position(|c| Some(c.window) == self.active_window)
             .unwrap_or(0);
 
-        let new_active_window = match msg.action {
-            Action::SelectLeftWindow => {
-                if pos >= self.clients.len() - 1 {
+        let new_pos = match msg.action {
+            Action::SelectAboveWindow => {
+                if clients.len() <= 1 {
+                    0
+                } else if pos == 0 && clients.len() > 0 {
+                    clients.len() - 1
+                } else {
+                    pos - 1
+                }
+            },
+            Action::SelectBelowWindow => {
+                if clients.len() <= 1 {
+                    0
+                } else if pos >= clients.len() - 1 {
                     0
                 } else {
                     pos + 1
                 }
             },
-            Action::SelectRightWindow => {
-                if pos == 0 && self.clients.len() == 0 {
-                    0
-                } else if pos == 0 && self.clients.len() > 0 {
-                    self.clients.len() - 1
-                } else {
-                    pos - 1
-                }
-            },
+            _ => pos,
         };
 
-        self.active_window = Some(new_active_window as u32);
+        let active_client = clients.get(new_pos);
+        if let Some(client) = active_client {
+            ctx.notify(SetActiveWindow {
+                window: Some(client.window),
+            });
+        }
     }
 }
