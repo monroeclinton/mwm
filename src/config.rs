@@ -5,8 +5,8 @@ use serde::Deserialize;
 pub enum Action {
     SelectAboveWindow,
     SelectBelowWindow,
-    ShrinkMainWindow,
-    ExpandMainWindow,
+    ShrinkFrontWindow,
+    ExpandFrontWindow,
 }
 
 #[derive(Deserialize)]

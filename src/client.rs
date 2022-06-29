@@ -1,6 +1,6 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use actix::{Actor, Context, Handler, Message, AsyncContext};
 
@@ -19,6 +19,7 @@ pub struct Clients {
     pub clients: VecDeque<Client>,
     pub active_workspace: u8,
     pub active_window: Option<xcb::Window>,
+    pub front_window_ratio: HashMap<u8, f32>,
 }
 
 impl Clients {
@@ -29,6 +30,7 @@ impl Clients {
             clients: VecDeque::new(),
             active_workspace: 1,
             active_window: None,
+            front_window_ratio: HashMap::new(),
         }
     }
 
@@ -192,6 +194,10 @@ impl Handler<ResizeClients> for Clients {
         let clients_length = visible_clients.len();
         let available_height = screen_height - padding_top;
 
+        let front_window_ratio = *self.front_window_ratio
+            .entry(self.active_workspace)
+            .or_insert(0.5);
+
         for (i, client) in visible_clients.iter().enumerate() {
             let (mut x, mut y) = (gap, gap + padding_top);
 
@@ -201,15 +207,19 @@ impl Handler<ResizeClients> for Clients {
             );
 
             if clients_length > 1 {
-                width = (width - border_double - gap_double) / 2;
+                width = width - border_double - gap_double;
+
+                let front_window_width = (width as f32 * front_window_ratio) as usize;
+                let window_height = (available_height) / (clients_length - 1);
 
                 if i > 0 {
-                    let window_height = (available_height) / (clients_length - 1);
-
-                    x = x + width + border_double + gap_double;
-                    y = y + window_height * (i - 1);
-
+                    width = width - front_window_width;
                     height = window_height - border_double - gap_double;
+
+                    x = x + front_window_width + border_double + gap_double;
+                    y = y + window_height * (i - 1);
+                } else {
+                    width = front_window_width;
                 }
             }
 
@@ -411,7 +421,7 @@ impl Handler<HandleWindowAction> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
-
+        // Handle the selection actions
         let clients = self.clients
             .iter()
             .filter(|&c| c.visible && c.controlled)
@@ -451,5 +461,26 @@ impl Handler<HandleWindowAction> for Clients {
                 window: Some(client.window),
             });
         }
+
+        // Handle the window sizing actions
+        let size = self.front_window_ratio
+            .entry(self.active_workspace)
+            .or_insert(0.5);
+
+        match msg.action {
+            Action::ShrinkFrontWindow => {
+                if *size > 0.10 {
+                    *size -= 0.05;
+                }
+            },
+            Action::ExpandFrontWindow => {
+                if *size < 0.9 {
+                    *size += 0.05;
+                }
+            },
+            _ => (),
+        };
+
+        ctx.notify(ResizeClients);
     }
 }

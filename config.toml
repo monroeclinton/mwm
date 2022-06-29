@@ -34,8 +34,13 @@ action = "SelectBelowWindow"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt
-keysym = 0x006b # key: k
-action = "SelectRightWindow"
+keysym = 0x0068 # key: h
+action = "ShrinkFrontWindow"
+
+[[actions]]
+modifier = 0x0008 # key: l-alt
+keysym = 0x006c # key: l
+action = "ExpandFrontWindow"
 
 # List of commands that are executed
 [[commands]]
