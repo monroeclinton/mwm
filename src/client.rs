@@ -91,18 +91,61 @@ impl Handler<CreateClient> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: CreateClient, ctx: &mut Self::Context) -> Self::Result {
-        let cookie = xcb_util::ewmh::get_wm_window_type(
+        let reply = xcb::get_property(
+            &self.conn,
+            false,
+            msg.window,
+            xcb::ATOM_WM_TRANSIENT_FOR,
+            xcb::ATOM_WINDOW,
+            0,
+            1,
+        ).get_reply();
+
+        let is_transient = match reply {
+            Ok(property) => {
+                property.format() == 32 ||
+                property.type_() == xcb::ATOM_WINDOW ||
+                property.value_len() != 0
+            },
+            _ => false,
+        };
+
+        let reply = xcb_util::ewmh::get_wm_window_type(
             &self.conn,
             msg.window
         ).get_reply();
 
         let mut controlled = true;
 
-        if let Ok(reply) = cookie {
-            let atoms = reply.atoms();
+        if let Ok(window_type) = reply {
+            let atoms = window_type.atoms();
             for atom in atoms {
                 if *atom == self.conn.WM_WINDOW_TYPE_DOCK() {
                     controlled = false;
+                }
+
+                if *atom == self.conn.WM_WINDOW_TYPE_DIALOG() || is_transient {
+                    controlled = false;
+
+                    let screen = get_screen(&self.conn);
+
+                    let reply = xcb::get_geometry(&self.conn, msg.window).get_reply();
+
+                    if let Ok(geomtry) = reply {
+                        let x = (screen.width_in_pixels() - geomtry.width()) / 2;
+                        let y = (screen.height_in_pixels() - geomtry.height()) / 2;
+                        let border = self.config.border_thickness;
+
+                        xcb::configure_window(
+                            &self.conn,
+                            msg.window,
+                            &[
+                                (xcb::CONFIG_WINDOW_X as u16, x as u32),
+                                (xcb::CONFIG_WINDOW_Y as u16, y as u32),
+                                (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
+                            ],
+                        );
+                    }
                 }
             }
         }
