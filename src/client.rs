@@ -91,6 +91,12 @@ impl Handler<CreateClient> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: CreateClient, ctx: &mut Self::Context) -> Self::Result {
+        let already_created = self.clients.iter().any(|c| c.window == msg.window);
+
+        if already_created {
+            return;
+        }
+
         let reply = xcb::get_property(
             &self.conn,
             false,
