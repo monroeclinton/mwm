@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-actix = "0.13.0"
-anyhow = "1.0.56"
 cairo-rs = { version = "0.15.11", features = ["xcb"] }
 cairo-sys-rs = "0.15.1"
 chrono = "0.4.19"

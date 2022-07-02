@@ -624,8 +624,6 @@ dependencies = [
 name = "statusbar"
 version = "0.1.0"
 dependencies = [
- "actix",
- "anyhow",
  "cairo-rs",
  "cairo-sys-rs",
  "chrono",
