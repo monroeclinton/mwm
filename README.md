@@ -17,6 +17,7 @@ There are config.toml files in the `src` and `statusbar` directories
 that you can customize. This should eventually read from `~/.config`
 but right now it reads from the project directory.
 
-# Screenshot
+# Screenshots
 
-![Screenshot of mwm](screenshots/2.png)
+![Screenshot of mwm](screenshots/3.png)
+![Screenshot of mwm](screenshots/4.png)
