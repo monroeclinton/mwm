@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 #[derive(Clone, Deserialize)]
 pub enum Action {
+    CloseWindow,
     SelectAboveWindow,
     SelectBelowWindow,
     ShrinkFrontWindow,

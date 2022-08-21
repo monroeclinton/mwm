@@ -470,6 +470,20 @@ impl Handler<HandleWindowAction> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
+        // Handle close action
+        match msg.action {
+            Action::CloseWindow => {
+                if let Some(window) = self.active_window {
+                    xcb::set_close_down_mode(&self.conn, xcb::CLOSE_DOWN_DESTROY_ALL as u8);
+                    xcb::kill_client(&self.conn, window);
+                    self.conn.flush();
+                }
+
+                return;
+            },
+            _ => (),
+        };
+
         // Handle the selection actions
         let clients = self.clients
             .iter()
