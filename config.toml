@@ -23,7 +23,7 @@ autostart = [
 
 # List of actions that the window manager handles
 [[actions]]
-modifier = 0x0008 # key: l-alt
+modifier = 0x0009 # key: l-alt + shift
 keysym = 0x0063 # key: c
 action = "CloseWindow"
 
