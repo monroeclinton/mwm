@@ -51,4 +51,9 @@ action = "ExpandFrontWindow"
 [[commands]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x0070 # key: p
+command = "selector_run"
+
+[[commands]]
+modifier = 0x0008 # key: l-alt
+keysym = 0x0073 # key: s
 command = "st"
