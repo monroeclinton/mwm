@@ -46,9 +46,10 @@ impl Selector {
             xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
             screen.root_visual(),
             &[
+                (xcb::CW_EVENT_MASK, xcb::EVENT_MASK_KEY_PRESS),
                 (xcb::CW_BACK_PIXEL, config.background_color),
-                (xcb::CW_OVERRIDE_REDIRECT, 1),
                 (xcb::CW_BORDER_PIXEL, config.border_color),
+                (xcb::CW_OVERRIDE_REDIRECT, 1),
             ],
         );
 
