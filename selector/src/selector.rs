@@ -143,7 +143,7 @@ impl Selector {
 
         if let Some(keycode) = key_symbols.get_keycode(self.config.close_keysym).next() {
             if event.detail() == keycode {
-                std::process::exit(1);
+                std::process::exit(0);
             }
         }
 
@@ -151,7 +151,7 @@ impl Selector {
             if event.detail() == keycode {
                 if let Some(command) = self.commands.get(self.selection_index) {
                     println!("{command}");
-                    std::process::exit(1);
+                    std::process::exit(0);
                 }
             }
         }
