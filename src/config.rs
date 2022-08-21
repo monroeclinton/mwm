@@ -38,8 +38,12 @@ pub struct Config {
 }
 
 pub fn get_config() -> Config {
-    let toml_string = fs::read_to_string("config.toml")
-        .expect("Unable to read config.toml file.");
+    let home_path = std::env::var_os("HOME")
+        .expect("No HOME variable set.");
+
+    let config_path = format!("{}{}", home_path.to_string_lossy(), "/.config/mwm/config.toml");
+    let toml_string = fs::read_to_string(config_path)
+        .expect("Unable to read config.toml file from ~/.config/mwm/config.toml");
 
     toml::from_str(&toml_string)
         .expect("Unable to parse toml config.")

@@ -35,4 +35,3 @@ up_keysym = 0x006b # key: k
 
 # Keysym to move down
 down_keysym = 0x006a # key: j
-
