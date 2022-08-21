@@ -300,7 +300,7 @@ impl Message for HideWindow {
 impl Handler<HideWindow> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: HideWindow, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: HideWindow, ctx: &mut Self::Context) -> Self::Result {
         for mut client in self.clients.iter_mut() {
             if msg.window == client.window {
                 if client.visible {
@@ -313,6 +313,8 @@ impl Handler<HideWindow> for Clients {
         }
 
         self.conn.flush();
+
+        ctx.notify(ResizeClients);
     }
 }
 
@@ -349,7 +351,7 @@ impl Message for SetActiveWorkspace {
 impl Handler<SetActiveWorkspace> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: SetActiveWorkspace, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SetActiveWorkspace, ctx: &mut Self::Context) -> Self::Result {
         self.active_workspace = msg.workspace;
 
         for mut client in self.clients.iter_mut().filter(|c| c.controlled) {
@@ -373,6 +375,12 @@ impl Handler<SetActiveWorkspace> for Clients {
             0,
             self.active_workspace as u32,
         );
+
+        ctx.notify(SetActiveWindow {
+            window: None,
+        });
+
+        ctx.notify(ResizeClients);
 
         self.conn.flush();
     }
@@ -437,23 +445,23 @@ impl Handler<SetWindowWorkspace> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: SetWindowWorkspace, ctx: &mut Self::Context) -> Self::Result {
+        if Some(self.active_workspace) == msg.workspace {
+            return;
+        }
+
         for client in self.clients.iter_mut() {
             if client.window == msg.window {
                 client.workspace = msg.workspace;
 
-                if client.controlled && Some(self.active_workspace) == msg.workspace {
-                    client.visible = true;
-                } else {
-                    client.visible = false;
-                }
+                ctx.notify(HideWindow {
+                    window: msg.window,
+                });
 
                 break;
             }
         }
 
         self.set_client_list();
-
-        ctx.notify(ResizeClients);
     }
 }
 

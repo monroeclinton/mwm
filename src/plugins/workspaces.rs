@@ -1,4 +1,4 @@
-use crate::client::{SetActiveWorkspace, SetActiveWindow, SetWindowWorkspace};
+use crate::client::{SetActiveWorkspace, SetWindowWorkspace};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -48,10 +48,6 @@ impl PluginHandler for Workspaces {
                     workspace: Some(workspace),
                 });
             }
-
-            ectx.clients.do_send(SetActiveWindow {
-                window: None,
-            });
         }
 
         Ok(())
