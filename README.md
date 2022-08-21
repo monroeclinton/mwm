@@ -4,9 +4,9 @@ My window manager that is a work in progress. Currently hacky
 # Installation
 Clone this repo then:
 ```
-cargo build --release
+make install
 ```
-Put the binary in your path, then add this to your `xinitrc`:
+This will install the binaries in `/usr/local/bin`. Then add this to your `xinitrc`:
 ```
 exec mwm
 ```
