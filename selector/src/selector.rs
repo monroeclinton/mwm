@@ -60,14 +60,22 @@ impl Selector {
             (xcb::CONFIG_WINDOW_STACK_MODE as u16, xcb::STACK_MODE_ABOVE)
         ]);
 
-        xcb::grab_keyboard(
-            &conn,
-            false,
-            screen.root(),
-            xcb::CURRENT_TIME,
-            xcb::GRAB_MODE_ASYNC as u8,
-            xcb::GRAB_MODE_ASYNC as u8,
-        );
+        let mut grabbed = false;
+        while !grabbed {
+            let reply = xcb::grab_keyboard(
+                &conn,
+                false,
+                screen.root(),
+                xcb::CURRENT_TIME,
+                xcb::GRAB_MODE_ASYNC as u8,
+                xcb::GRAB_MODE_ASYNC as u8,
+            ).get_reply();
+
+            grabbed = match reply {
+                Ok(r) => r.status() == xcb::GRAB_STATUS_SUCCESS as u8,
+                Err(_) => false
+            };
+        }
 
         conn.flush();
 
