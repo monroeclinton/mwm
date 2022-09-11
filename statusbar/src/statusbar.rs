@@ -2,7 +2,8 @@ use crate::config::{Config, get_config};
 use crate::surface::Surface;
 use crate::screen::get_screen;
 use std::sync::Arc;
-use tokio::time::{Duration, sleep};
+use tokio::sync::mpsc::channel;
+use tokio::time::{Duration, interval};
 
 pub struct StatusBar {
     conn: Arc<xcb_util::ewmh::Connection>,
@@ -105,18 +106,31 @@ impl StatusBar {
     }
 
     pub async fn run(mut self) {
+        let (tx, mut rx) = channel(100);
+
+        let event_tx = tx.clone();
+        let conn = self.conn.clone();
+        tokio::task::spawn_blocking(move || {
+            loop {
+                conn.wait_for_event();
+                event_tx.try_send(()).unwrap();
+            }
+       });
+
+        let interval_tx = tx.clone();
+        tokio::spawn(async move {
+            let mut interval = interval(Duration::from_secs(5));
+
+            loop {
+                interval.tick().await;
+                let _ = interval_tx.send(()).await;
+            }
+        });
+
         loop {
             self.draw();
 
-            let conn = self.conn.clone();
-            let event = tokio::task::spawn_blocking(move || {
-                conn.wait_for_event()
-            });
-
-            tokio::select! {
-                _ = event => {},
-                _ = sleep(Duration::from_secs(5)) => {},
-            }
+            rx.recv().await;
         }
     }
 
