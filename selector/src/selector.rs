@@ -157,7 +157,8 @@ impl Selector {
 
         if let Some(keycode) = key_symbols.get_keycode(self.config.select_keysym).next() {
             if event.detail() == keycode {
-                if let Some(command) = self.commands.get(self.selection_index) {
+                let commands = self.filtered_commands();
+                if let Some(command) = commands.get(self.selection_index) {
                     println!("{command}");
                     std::process::exit(0);
                 }
