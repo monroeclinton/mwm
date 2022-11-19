@@ -402,26 +402,31 @@ impl Handler<SetActiveWindow> for Clients {
             let active_border = self.config.active_border;
             let inactive_border = self.config.inactive_border;
 
-            xcb::set_input_focus(
-                &self.conn,
-                xcb::INPUT_FOCUS_PARENT as u8,
-                window,
-                xcb::CURRENT_TIME,
-            );
+            let is_controlled = self.clients.iter()
+                .any(|c| c.window == window && c.controlled);
 
-            xcb::change_window_attributes(&self.conn, window, &[(xcb::CW_BORDER_PIXEL, active_border)]);
+            if is_controlled {
+                xcb::set_input_focus(
+                    &self.conn,
+                    xcb::INPUT_FOCUS_PARENT as u8,
+                    window,
+                    xcb::CURRENT_TIME,
+                );
+                xcb::change_window_attributes(
+                    &self.conn,
+                    window,
+                    &[(xcb::CW_BORDER_PIXEL, active_border)]
+                );
+                xcb_util::ewmh::set_active_window(&self.conn, 0, window);
 
-            for client in self.clients.iter() {
-                if client.window != window {
+                if let Some(active_window) = self.active_window {
                     xcb::change_window_attributes(
                         &self.conn,
-                        client.window,
-                        &[(xcb::CW_BORDER_PIXEL, inactive_border)],
+                        active_window,
+                        &[(xcb::CW_BORDER_PIXEL, inactive_border)]
                     );
                 }
             }
-
-            xcb_util::ewmh::set_active_window(&self.conn, 0, window);
         } else {
             xcb_util::ewmh::set_active_window(&self.conn, 0, 0);
         }
