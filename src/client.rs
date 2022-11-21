@@ -168,19 +168,17 @@ impl Handler<CreateClient> for Clients {
         ).get_reply();
 
         // TODO: Add other paddings
-        let mut padding_top = 0;
-        if let Ok(struct_partial) = cookie {
-            padding_top = struct_partial.top;
-        }
+        let padding_top = if let Ok(struct_partial) = cookie {
+            struct_partial.top
+        } else {
+            0
+        };
 
-        let mut workspace = None;
-        if controlled {
-            workspace = Some(self.active_workspace);
-
-            ctx.notify(SetActiveWindow {
-                window: Some(msg.window),
-            });
-        }
+        let workspace = if controlled {
+            Some(self.active_workspace)
+        } else {
+            None
+        };
 
         self.clients.push_front(Client {
             window: msg.window,
@@ -190,18 +188,25 @@ impl Handler<CreateClient> for Clients {
             padding_top,
         });
 
-        // Make sure window does not overlap with statusbar
         if controlled {
+            // Make sure window does not overlap with statusbar
             xcb::configure_window(
                 &self.conn,
                 msg.window,
                 &[
-                    (xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)
+                    (xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32),
                 ],
             );
+
+            // Set window as active
+            ctx.notify(SetActiveWindow {
+                window: Some(msg.window),
+            });
         }
 
         xcb::map_window(&self.conn, msg.window);
+
+        self.conn.flush();
 
         self.set_client_list();
     }
@@ -218,8 +223,14 @@ impl Message for DestroyClient {
 impl Handler<DestroyClient> for Clients {
     type Result = ();
 
-    fn handle(&mut self, msg: DestroyClient, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: DestroyClient, ctx: &mut Self::Context) -> Self::Result {
         self.clients.retain(|c| c.window != msg.window);
+
+        if self.active_window == Some(msg.window) {
+            ctx.notify(SetActiveWindow {
+                window: None,
+            });
+        }
 
         self.set_client_list();
     }
@@ -415,6 +426,10 @@ impl Handler<SetActiveWindow> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: SetActiveWindow, _ctx: &mut Self::Context) -> Self::Result {
+        if msg.window == self.active_window {
+            return;
+        }
+
         if let Some(window) = msg.window {
             let active_border = self.config.active_border;
             let inactive_border = self.config.inactive_border;
