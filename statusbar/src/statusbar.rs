@@ -135,8 +135,6 @@ impl StatusBar {
     }
 
     pub fn draw(&mut self) {
-        self.surface.clear_surface(&self.config);
-
         // Draw title
         let reply = xcb_util::ewmh::get_active_window(
             &self.conn,
