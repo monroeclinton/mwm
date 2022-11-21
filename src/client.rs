@@ -34,6 +34,12 @@ impl Clients {
         }
     }
 
+    fn get_padding_top(&self) -> usize {
+        self.clients.iter()
+            .filter(|&c| c.visible)
+            .fold(0, |acc, c| acc + c.padding_top as usize)
+    }
+
     fn set_client_list(&mut self) {
         xcb_util::ewmh::set_client_list(
             &self.conn,
@@ -225,9 +231,7 @@ impl Handler<ResizeClients> for Clients {
         let gap = self.config.border_gap as usize;
         let gap_double = gap * 2;
 
-        let padding_top = self.clients.iter()
-            .filter(|&c| c.visible)
-            .fold(0, |acc, c| acc + c.padding_top) as usize;
+        let padding_top = self.get_padding_top();
 
         let max_clients = (screen_height - padding_top) / (
             gap_double + border_double
