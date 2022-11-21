@@ -12,13 +12,9 @@ impl PluginHandler for MapWindow {
             return Ok(());
         }
 
-        let values = [(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE | xcb::EVENT_MASK_STRUCTURE_NOTIFY | xcb::EVENT_MASK_ENTER_WINDOW)];
-
-        xcb::change_window_attributes(&ectx.conn, ectx.event.window(), &values);
-
-        xcb::map_window(&ectx.conn, ectx.event.window());
-
-        ectx.conn.flush();
+        xcb::change_window_attributes(&ectx.conn, ectx.event.window(), &[
+            (xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE | xcb::EVENT_MASK_STRUCTURE_NOTIFY | xcb::EVENT_MASK_ENTER_WINDOW)
+        ]);
 
         ectx.clients.do_send(CreateClient {
             window: ectx.event.window(),

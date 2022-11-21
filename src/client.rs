@@ -190,6 +190,19 @@ impl Handler<CreateClient> for Clients {
             padding_top,
         });
 
+        // Make sure window does not overlap with statusbar
+        if controlled {
+            xcb::configure_window(
+                &self.conn,
+                msg.window,
+                &[
+                    (xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)
+                ],
+            );
+        }
+
+        xcb::map_window(&self.conn, msg.window);
+
         self.set_client_list();
     }
 }
