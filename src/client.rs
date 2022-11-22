@@ -515,32 +515,27 @@ impl Handler<HandleWindowAction> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
-        // Handle close action
-        match msg.action {
-            Action::CloseWindow => {
-                if let Some(window) = self.active_window {
-                    xcb::set_close_down_mode(&self.conn, xcb::CLOSE_DOWN_DESTROY_ALL as u8);
-                    xcb::kill_client(&self.conn, window);
-                    self.conn.flush();
-                }
-
-                return;
-            },
-            _ => (),
-        };
-
-        // Handle the selection actions
         let clients = self.clients
             .iter()
             .filter(|&c| c.visible && c.controlled)
             .cloned()
             .collect::<Vec<Client>>();
 
+        // Handle close action
+        if let (Action::CloseWindow, Some(window)) = (&msg.action, self.active_window) {
+            if clients.iter().any(|c| c.window == window) {
+                xcb::set_close_down_mode(&self.conn, xcb::CLOSE_DOWN_DESTROY_ALL as u8);
+                xcb::kill_client(&self.conn, window);
+                self.conn.flush();
+            }
+        }
+
         let pos = clients
             .iter()
             .position(|c| Some(c.window) == self.active_window)
             .unwrap_or(0);
 
+        // Handle the selection actions
         let new_pos = match msg.action {
             Action::SelectAboveWindow => {
                 if clients.len() <= 1 {
