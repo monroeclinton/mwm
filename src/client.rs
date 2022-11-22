@@ -19,6 +19,7 @@ pub struct Clients {
     pub clients: VecDeque<Client>,
     pub active_workspace: u8,
     pub active_window: Option<xcb::Window>,
+    pub dock_window: Option<xcb::Window>,
     pub front_window_ratio: HashMap<u8, f32>,
 }
 
@@ -30,6 +31,7 @@ impl Clients {
             clients: VecDeque::new(),
             active_workspace: 1,
             active_window: None,
+            dock_window: None,
             front_window_ratio: HashMap::new(),
         }
     }
@@ -133,6 +135,7 @@ impl Handler<CreateClient> for Clients {
             let atoms = window_type.atoms();
             for atom in atoms {
                 if *atom == self.conn.WM_WINDOW_TYPE_DOCK() {
+                    self.dock_window = Some(msg.window);
                     controlled = false;
                 }
 
@@ -426,7 +429,7 @@ impl Handler<SetActiveWindow> for Clients {
     type Result = ();
 
     fn handle(&mut self, msg: SetActiveWindow, _ctx: &mut Self::Context) -> Self::Result {
-        if msg.window == self.active_window {
+        if msg.window == self.active_window || msg.window == self.dock_window {
             return;
         }
 
@@ -434,30 +437,25 @@ impl Handler<SetActiveWindow> for Clients {
             let active_border = self.config.active_border;
             let inactive_border = self.config.inactive_border;
 
-            let is_controlled = self.clients.iter()
-                .any(|c| c.window == window && c.controlled);
+            xcb::set_input_focus(
+                &self.conn,
+                xcb::INPUT_FOCUS_PARENT as u8,
+                window,
+                xcb::CURRENT_TIME,
+            );
+            xcb::change_window_attributes(
+                &self.conn,
+                window,
+                &[(xcb::CW_BORDER_PIXEL, active_border)]
+            );
+            xcb_util::ewmh::set_active_window(&self.conn, 0, window);
 
-            if is_controlled {
-                xcb::set_input_focus(
-                    &self.conn,
-                    xcb::INPUT_FOCUS_PARENT as u8,
-                    window,
-                    xcb::CURRENT_TIME,
-                );
+            if let Some(active_window) = self.active_window {
                 xcb::change_window_attributes(
                     &self.conn,
-                    window,
-                    &[(xcb::CW_BORDER_PIXEL, active_border)]
+                    active_window,
+                    &[(xcb::CW_BORDER_PIXEL, inactive_border)]
                 );
-                xcb_util::ewmh::set_active_window(&self.conn, 0, window);
-
-                if let Some(active_window) = self.active_window {
-                    xcb::change_window_attributes(
-                        &self.conn,
-                        active_window,
-                        &[(xcb::CW_BORDER_PIXEL, inactive_border)]
-                    );
-                }
             }
         } else {
             xcb_util::ewmh::set_active_window(&self.conn, 0, 0);
