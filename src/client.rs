@@ -105,25 +105,6 @@ impl Handler<CreateClient> for Clients {
             return;
         }
 
-        let reply = xcb::get_property(
-            &self.conn,
-            false,
-            msg.window,
-            xcb::ATOM_WM_TRANSIENT_FOR,
-            xcb::ATOM_WINDOW,
-            0,
-            1,
-        ).get_reply();
-
-        let is_transient = match reply {
-            Ok(property) => {
-                property.format() == 32 ||
-                property.type_() == xcb::ATOM_WINDOW ||
-                property.value_len() != 0
-            },
-            _ => false,
-        };
-
         let reply = xcb_util::ewmh::get_wm_window_type(
             &self.conn,
             msg.window
@@ -139,28 +120,8 @@ impl Handler<CreateClient> for Clients {
                     controlled = false;
                 }
 
-                if *atom == self.conn.WM_WINDOW_TYPE_DIALOG() || is_transient {
+                if *atom == self.conn.WM_WINDOW_TYPE_DIALOG() {
                     controlled = false;
-
-                    let screen = get_screen(&self.conn);
-
-                    let reply = xcb::get_geometry(&self.conn, msg.window).get_reply();
-
-                    if let Ok(geomtry) = reply {
-                        let x = (screen.width_in_pixels() - geomtry.width()) / 2;
-                        let y = (screen.height_in_pixels() - geomtry.height()) / 2;
-                        let border = self.config.border_thickness;
-
-                        xcb::configure_window(
-                            &self.conn,
-                            msg.window,
-                            &[
-                                (xcb::CONFIG_WINDOW_X as u16, x as u32),
-                                (xcb::CONFIG_WINDOW_Y as u16, y as u32),
-                                (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
-                            ],
-                        );
-                    }
                 }
             }
         }
@@ -191,8 +152,25 @@ impl Handler<CreateClient> for Clients {
             padding_top,
         });
 
+        // Ensure border width and color is set for non-dock windows
+        if self.dock_window != Some(msg.window) {
+            xcb::configure_window(
+                &self.conn,
+                msg.window,
+                &[
+                    (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, self.config.border_thickness)
+                ],
+            );
+
+            xcb::change_window_attributes(
+                &self.conn,
+                msg.window,
+                &[(xcb::CW_BORDER_PIXEL, self.config.inactive_border)]
+            );
+        }
+
+        // Make sure window does not overlap with statusbar
         if controlled {
-            // Make sure window does not overlap with statusbar
             xcb::configure_window(
                 &self.conn,
                 msg.window,
