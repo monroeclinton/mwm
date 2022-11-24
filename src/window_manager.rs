@@ -120,7 +120,7 @@ impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
             let config = self.config.clone();
             let conn = self.conn.clone();
 
-            match e.response_type() {
+            match e.response_type() & !0x80 {
                 xcb::CLIENT_MESSAGE => self.listener.on_client_message(EventContext {
                     clients,
                     config,
