@@ -1,4 +1,4 @@
-use crate::client::SetControlledStatus;
+use crate::client::{SetControlledStatus, SetFullScreenStatus};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use crate::screen::get_screen;
@@ -7,6 +7,28 @@ use crate::screen::get_screen;
 pub struct ConfigureWindow;
 
 impl PluginHandler for ConfigureWindow {
+    fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> anyhow::Result<()> {
+        if ectx.event.type_() == ectx.conn.WM_STATE() {
+            let data = ectx.event.data().data32();
+
+            let is_full_screen = if data[0] == xcb_util::ewmh::STATE_ADD {
+                Some(true)
+            } else {
+                None
+            };
+
+            let toggle = data[1] == xcb_util::ewmh::STATE_TOGGLE;
+
+            ectx.clients.do_send(SetFullScreenStatus {
+                window: ectx.event.window(),
+                status: is_full_screen,
+                toggle,
+            });
+        }
+
+        Ok(())
+    }
+
     fn on_configure_request(&mut self, ectx: EventContext<xcb::ConfigureRequestEvent>) -> anyhow::Result<()> {
         let geomtry = xcb::get_geometry(&ectx.conn, ectx.event.window())
             .get_reply()

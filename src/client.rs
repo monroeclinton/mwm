@@ -10,6 +10,7 @@ pub struct Client {
     pub workspace: Option<u8>,
     pub visible: bool,
     pub controlled: bool, // If should resize/size/configure window
+    pub full_screen: bool,
     pub padding_top: u32,
 }
 
@@ -149,6 +150,7 @@ impl Handler<CreateClient> for Clients {
             workspace,
             visible: true,
             controlled,
+            full_screen: false,
             padding_top,
         });
 
@@ -256,6 +258,7 @@ impl Handler<ResizeClients> for Clients {
             .entry(self.active_workspace)
             .or_insert(0.5);
 
+        // Tile windows
         for (i, client) in visible_clients.iter().enumerate() {
             let (mut x, mut y) = (gap, gap + padding_top);
 
@@ -290,6 +293,21 @@ impl Handler<ResizeClients> for Clients {
                     (xcb::CONFIG_WINDOW_WIDTH as u16, width as u32),
                     (xcb::CONFIG_WINDOW_HEIGHT as u16, height as u32),
                     (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
+                ],
+            );
+        }
+
+        // Full screen windows
+        for client in visible_clients.iter().filter(|&c| c.full_screen) {
+            xcb::configure_window(
+                &self.conn,
+                client.window,
+                &[
+                    (xcb::CONFIG_WINDOW_X as u16, 0),
+                    (xcb::CONFIG_WINDOW_Y as u16, 0),
+                    (xcb::CONFIG_WINDOW_WIDTH as u16, screen_width as u32),
+                    (xcb::CONFIG_WINDOW_HEIGHT as u16, screen_height as u32),
+                    (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, 0),
                 ],
             );
         }
@@ -343,6 +361,30 @@ impl Handler<SetControlledStatus> for Clients {
         for mut client in self.clients.iter_mut() {
             if msg.window == client.window {
                 client.controlled = msg.status;
+                break;
+            }
+        }
+    }
+}
+
+pub struct SetFullScreenStatus {
+    pub window: xcb::Window,
+    pub status: Option<bool>,
+    pub toggle: bool,
+}
+
+impl Message for SetFullScreenStatus {
+    type Result = ();
+}
+
+impl Handler<SetFullScreenStatus> for Clients {
+    type Result = ();
+
+    fn handle(&mut self, msg: SetFullScreenStatus, ctx: &mut Self::Context) -> Self::Result {
+        for mut client in self.clients.iter_mut() {
+            if msg.window == client.window {
+                client.full_screen = Some(true) == msg.status || (!client.full_screen && msg.toggle);
+                ctx.notify(ResizeClients);
                 break;
             }
         }
