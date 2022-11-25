@@ -9,9 +9,7 @@ pub struct Workspaces;
 impl PluginHandler for Workspaces {
     fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
         if ectx.event.type_() == ectx.conn.CURRENT_DESKTOP() {
-            ectx.clients.do_send(SetActiveWorkspace {
-                workspace: 1,
-            });
+            ectx.clients.do_send(SetActiveWorkspace { workspace: 1 });
         }
 
         Ok(())
@@ -37,9 +35,7 @@ impl PluginHandler for Workspaces {
 
         if let Some(workspace) = active_workspace {
             if ectx.config.workspace_modifier == ectx.event.state() {
-                ectx.clients.do_send(SetActiveWorkspace {
-                    workspace,
-                });
+                ectx.clients.do_send(SetActiveWorkspace { workspace });
             }
 
             if ectx.config.workspace_move_window_modifier == ectx.event.state() {

@@ -1,10 +1,10 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
+use actix::{Actor, AsyncContext, Context, Handler, Message};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use actix::{Actor, Context, Handler, Message, AsyncContext};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Client {
     pub window: xcb::Window,
     pub workspace: Option<u8>,
@@ -38,7 +38,8 @@ impl Clients {
     }
 
     fn get_padding_top(&self) -> usize {
-        self.clients.iter()
+        self.clients
+            .iter()
             .filter(|&c| c.visible)
             .fold(0, |acc, c| acc + c.padding_top as usize)
     }
@@ -47,40 +48,39 @@ impl Clients {
         xcb_util::ewmh::set_client_list(
             &self.conn,
             0,
-            &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>()
+            &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>(),
         );
 
         let names = (1..=9)
             .map(|i: u8| {
-                let count = self.clients.iter()
+                let count = self
+                    .clients
+                    .iter()
                     .filter(|c| c.workspace == Some(i))
                     .count();
 
-                let count_string = count.to_string()
-                    .replace("0", "⁰")
-                    .replace("1", "¹")
-                    .replace("2", "²")
-                    .replace("3", "³")
-                    .replace("4", "⁴")
-                    .replace("5", "⁵")
-                    .replace("6", "⁶")
-                    .replace("7", "⁷")
-                    .replace("8", "⁸")
-                    .replace("9", "⁹");
+                let count_string = count
+                    .to_string()
+                    .replace('0', "⁰")
+                    .replace('1', "¹")
+                    .replace('2', "²")
+                    .replace('3', "³")
+                    .replace('4', "⁴")
+                    .replace('5', "⁵")
+                    .replace('6', "⁶")
+                    .replace('7', "⁷")
+                    .replace('8', "⁸")
+                    .replace('9', "⁹");
 
                 if count > 0 {
-                    format!("{}{}", i.to_string(), count_string)
+                    format!("{}{}", i, count_string)
                 } else {
                     i.to_string()
                 }
             })
             .collect::<Vec<String>>();
 
-        xcb_util::ewmh::set_desktop_names(
-            &self.conn,
-            0,
-            names.iter().map(|s| s.as_ref()),
-        );
+        xcb_util::ewmh::set_desktop_names(&self.conn, 0, names.iter().map(|s| s.as_ref()));
     }
 }
 
@@ -106,10 +106,7 @@ impl Handler<CreateClient> for Clients {
             return;
         }
 
-        let reply = xcb_util::ewmh::get_wm_window_type(
-            &self.conn,
-            msg.window
-        ).get_reply();
+        let reply = xcb_util::ewmh::get_wm_window_type(&self.conn, msg.window).get_reply();
 
         let mut controlled = true;
 
@@ -127,10 +124,7 @@ impl Handler<CreateClient> for Clients {
             }
         }
 
-        let cookie = xcb_util::ewmh::get_wm_strut_partial(
-            &self.conn,
-            msg.window
-        ).get_reply();
+        let cookie = xcb_util::ewmh::get_wm_strut_partial(&self.conn, msg.window).get_reply();
 
         // TODO: Add other paddings
         let padding_top = if let Ok(struct_partial) = cookie {
@@ -159,15 +153,16 @@ impl Handler<CreateClient> for Clients {
             xcb::configure_window(
                 &self.conn,
                 msg.window,
-                &[
-                    (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, self.config.border_thickness)
-                ],
+                &[(
+                    xcb::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                    self.config.border_thickness,
+                )],
             );
 
             xcb::change_window_attributes(
                 &self.conn,
                 msg.window,
-                &[(xcb::CW_BORDER_PIXEL, self.config.inactive_border)]
+                &[(xcb::CW_BORDER_PIXEL, self.config.inactive_border)],
             );
         }
 
@@ -176,9 +171,7 @@ impl Handler<CreateClient> for Clients {
             xcb::configure_window(
                 &self.conn,
                 msg.window,
-                &[
-                    (xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32),
-                ],
+                &[(xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)],
             );
 
             // Set window as active
@@ -210,9 +203,7 @@ impl Handler<DestroyClient> for Clients {
         self.clients.retain(|c| c.window != msg.window);
 
         if self.active_window == Some(msg.window) {
-            ctx.notify(SetActiveWindow {
-                window: None,
-            });
+            ctx.notify(SetActiveWindow { window: None });
         }
 
         self.set_client_list();
@@ -240,11 +231,10 @@ impl Handler<ResizeClients> for Clients {
 
         let padding_top = self.get_padding_top();
 
-        let max_clients = (screen_height - padding_top) / (
-            gap_double + border_double
-        ) - 1;
+        let max_clients = (screen_height - padding_top) / (gap_double + border_double) - 1;
 
-        let visible_clients = self.clients
+        let visible_clients = self
+            .clients
             .iter()
             .filter(|&c| c.visible && c.controlled)
             .take(max_clients)
@@ -254,7 +244,8 @@ impl Handler<ResizeClients> for Clients {
         let clients_length = visible_clients.len();
         let available_height = screen_height - padding_top;
 
-        let front_window_ratio = *self.front_window_ratio
+        let front_window_ratio = *self
+            .front_window_ratio
             .entry(self.active_workspace)
             .or_insert(0.5);
 
@@ -268,17 +259,17 @@ impl Handler<ResizeClients> for Clients {
             );
 
             if clients_length > 1 {
-                width = width - border_double - gap_double;
+                width -= border_double - gap_double;
 
                 let front_window_width = (width as f32 * front_window_ratio) as usize;
                 let window_height = (available_height) / (clients_length - 1);
 
                 if i > 0 {
-                    width = width - front_window_width;
+                    width -= front_window_width;
                     height = window_height - border_double - gap_double;
 
-                    x = x + front_window_width + border_double + gap_double;
-                    y = y + window_height * (i - 1);
+                    x += front_window_width + border_double + gap_double;
+                    y += window_height * (i - 1);
                 } else {
                     width = front_window_width;
                 }
@@ -383,7 +374,8 @@ impl Handler<SetFullScreenStatus> for Clients {
     fn handle(&mut self, msg: SetFullScreenStatus, ctx: &mut Self::Context) -> Self::Result {
         for mut client in self.clients.iter_mut() {
             if msg.window == client.window {
-                client.full_screen = Some(true) == msg.status || (!client.full_screen && msg.toggle);
+                client.full_screen =
+                    Some(true) == msg.status || (!client.full_screen && msg.toggle);
                 ctx.notify(ResizeClients);
                 break;
             }
@@ -421,15 +413,9 @@ impl Handler<SetActiveWorkspace> for Clients {
             }
         }
 
-        xcb_util::ewmh::set_current_desktop(
-            &self.conn,
-            0,
-            self.active_workspace as u32,
-        );
+        xcb_util::ewmh::set_current_desktop(&self.conn, 0, self.active_workspace as u32);
 
-        ctx.notify(SetActiveWindow {
-            window: None,
-        });
+        ctx.notify(SetActiveWindow { window: None });
 
         ctx.notify(ResizeClients);
 
@@ -466,7 +452,7 @@ impl Handler<SetActiveWindow> for Clients {
             xcb::change_window_attributes(
                 &self.conn,
                 window,
-                &[(xcb::CW_BORDER_PIXEL, active_border)]
+                &[(xcb::CW_BORDER_PIXEL, active_border)],
             );
             xcb_util::ewmh::set_active_window(&self.conn, 0, window);
 
@@ -474,7 +460,7 @@ impl Handler<SetActiveWindow> for Clients {
                 xcb::change_window_attributes(
                     &self.conn,
                     active_window,
-                    &[(xcb::CW_BORDER_PIXEL, inactive_border)]
+                    &[(xcb::CW_BORDER_PIXEL, inactive_border)],
                 );
             }
         } else {
@@ -508,9 +494,7 @@ impl Handler<SetWindowWorkspace> for Clients {
             if client.window == msg.window {
                 client.workspace = msg.workspace;
 
-                ctx.notify(HideWindow {
-                    window: msg.window,
-                });
+                ctx.notify(HideWindow { window: msg.window });
 
                 break;
             }
@@ -534,21 +518,16 @@ impl Handler<HandleWindowAction> for Clients {
 
     fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
         // Handle close action
-        if let (Action::CloseWindow, Some(window)) = (&msg.action, self.active_window) {
+        if let (Action::Close, Some(window)) = (&msg.action, self.active_window) {
             let delete_window = xcb::intern_atom(&self.conn, false, "WM_DELETE_WINDOW")
                 .get_reply()
                 .unwrap();
 
-            let reply = xcb_util::icccm::get_wm_protocols(
-                &self.conn,
-                window,
-                self.conn.WM_PROTOCOLS()
-            ).get_reply();
+            let reply =
+                xcb_util::icccm::get_wm_protocols(&self.conn, window, self.conn.WM_PROTOCOLS())
+                    .get_reply();
 
-            let supports_wm_delete_window = reply
-                .unwrap()
-                .atoms()
-                .contains(&delete_window.atom());
+            let supports_wm_delete_window = reply.unwrap().atoms().contains(&delete_window.atom());
 
             if supports_wm_delete_window {
                 let event = xcb::ClientMessageEvent::new(
@@ -560,8 +539,8 @@ impl Handler<HandleWindowAction> for Clients {
                         xcb::CURRENT_TIME,
                         0,
                         0,
-                        0
-                    ])
+                        0,
+                    ]),
                 );
 
                 xcb::send_event_checked(&self.conn, true, window, xcb::EVENT_MASK_NO_EVENT, &event);
@@ -572,7 +551,8 @@ impl Handler<HandleWindowAction> for Clients {
             }
         }
 
-        let clients = self.clients
+        let clients = self
+            .clients
             .iter()
             .filter(|&c| c.visible && c.controlled)
             .cloned()
@@ -585,24 +565,22 @@ impl Handler<HandleWindowAction> for Clients {
 
         // Handle the selection actions
         let new_pos = match msg.action {
-            Action::SelectAboveWindow => {
+            Action::SelectAbove => {
                 if clients.len() <= 1 {
                     0
-                } else if pos == 0 && clients.len() > 0 {
+                } else if pos == 0 && !clients.is_empty() {
                     clients.len() - 1
                 } else {
                     pos - 1
                 }
-            },
-            Action::SelectBelowWindow => {
-                if clients.len() <= 1 {
-                    0
-                } else if pos >= clients.len() - 1 {
+            }
+            Action::SelectBelow => {
+                if clients.len() <= 1 || pos >= clients.len() - 1  {
                     0
                 } else {
                     pos + 1
                 }
-            },
+            }
             _ => pos,
         };
 
@@ -614,21 +592,22 @@ impl Handler<HandleWindowAction> for Clients {
         }
 
         // Handle the window sizing actions
-        let size = self.front_window_ratio
+        let size = self
+            .front_window_ratio
             .entry(self.active_workspace)
             .or_insert(0.5);
 
         match msg.action {
-            Action::ShrinkFrontWindow => {
+            Action::ShrinkFront => {
                 if *size > 0.10 {
                     *size -= 0.05;
                 }
-            },
-            Action::ExpandFrontWindow => {
+            }
+            Action::ExpandFront => {
                 if *size < 0.9 {
                     *size += 0.05;
                 }
-            },
+            }
             _ => (),
         };
 

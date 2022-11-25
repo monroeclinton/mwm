@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use std::convert::TryFrom;
 use anyhow::Result;
+use std::convert::TryFrom;
 
 // https://www.cl.cam.ac.uk/~mgk25/ucs/keysymdef.h
 pub enum Keysym {
@@ -212,4 +212,3 @@ impl std::fmt::Display for Keysym {
         }
     }
 }
-

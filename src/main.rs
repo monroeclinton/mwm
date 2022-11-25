@@ -9,8 +9,8 @@ mod screen;
 mod window_manager;
 
 use actix::SystemService;
-use window_manager::WindowManager;
 use anyhow::Result;
+use window_manager::WindowManager;
 
 fn main() -> Result<()> {
     let sys = actix::System::new();

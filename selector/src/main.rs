@@ -1,7 +1,7 @@
 mod config;
 mod keysym;
-mod surface;
 mod selector;
+mod surface;
 
 use selector::Selector;
 use std::io::{self, BufRead};

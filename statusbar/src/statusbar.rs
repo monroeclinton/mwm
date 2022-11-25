@@ -1,9 +1,9 @@
-use crate::config::{Config, get_config};
-use crate::surface::Surface;
+use crate::config::{get_config, Config};
 use crate::screen::get_screen;
+use crate::surface::Surface;
 use std::sync::Arc;
 use tokio::sync::mpsc::channel;
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 
 pub struct StatusBar {
     conn: Arc<xcb_util::ewmh::Connection>,
@@ -24,9 +24,11 @@ impl StatusBar {
 
         let screen = get_screen(&conn);
 
-        xcb::change_window_attributes(&conn, screen.root(), &[
-            (xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE)
-        ]);
+        xcb::change_window_attributes(
+            &conn,
+            screen.root(),
+            &[(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE)],
+        );
 
         let window = conn.generate_id();
 
@@ -35,8 +37,10 @@ impl StatusBar {
             xcb::WINDOW_CLASS_COPY_FROM_PARENT as u8,
             window,
             screen.root(),
-            config.margin as i16, config.margin as i16,
-            screen.width_in_pixels() - config.margin * 2, config.height,
+            config.margin as i16,
+            config.margin as i16,
+            screen.width_in_pixels() - config.margin * 2,
+            config.height,
             0,
             xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
             screen.root_visual(),
@@ -48,42 +52,47 @@ impl StatusBar {
 
         xcb_util::ewmh::set_wm_window_type(&conn, window, &[conn.WM_WINDOW_TYPE_DOCK()]);
 
-        xcb_util::ewmh::set_wm_strut_partial(&conn, window, xcb_util::ewmh::StrutPartial {
-            left: 0,
-            right: 0,
-            top: (config.height + config.margin) as u32,
-            bottom: 0,
-            left_start_y: 0,
-            left_end_y: 0,
-            right_start_y: 0,
-            right_end_y: 0,
-            top_start_x: 0,
-            top_end_x: 0,
-            bottom_start_x: 0,
-            bottom_end_x: 0,
-        });
+        xcb_util::ewmh::set_wm_strut_partial(
+            &conn,
+            window,
+            xcb_util::ewmh::StrutPartial {
+                left: 0,
+                right: 0,
+                top: (config.height + config.margin) as u32,
+                bottom: 0,
+                left_start_y: 0,
+                left_end_y: 0,
+                right_start_y: 0,
+                right_end_y: 0,
+                top_start_x: 0,
+                top_end_x: 0,
+                bottom_start_x: 0,
+                bottom_end_x: 0,
+            },
+        );
 
         xcb::map_window(&conn, window);
 
         conn.flush();
 
         // Uses xcb connection which will live length of program.
-        let cairo_conn = unsafe {
-            cairo::XCBConnection::from_raw_none((*conn.get_raw_conn()).connection as _)
-        };
+        let cairo_conn =
+            unsafe { cairo::XCBConnection::from_raw_none((*conn.get_raw_conn()).connection as _) };
 
         // I wish there was a better way to do this
         // https://xcb.freedesktop.org/xlibtoxcbtranslationguide/
         // https://tronche.com/gui/x/xlib/window/visual-types.html
-        let mut visual_type = screen.allowed_depths()
+        let mut visual_type = screen
+            .allowed_depths()
             .find_map(|depth| {
-                depth.visuals().find(|visual| screen.root_visual() == visual.visual_id())
+                depth
+                    .visuals()
+                    .find(|visual| screen.root_visual() == visual.visual_id())
             })
             .expect("Unable to find visual type of screen.");
 
-        let visual = unsafe {
-            cairo::XCBVisualType::from_raw_none(&mut visual_type.base as *mut _ as _)
-        };
+        let visual =
+            unsafe { cairo::XCBVisualType::from_raw_none(&mut visual_type.base as *mut _ as _) };
 
         let drawable = cairo::XCBDrawable(window);
         let surface = cairo::XCBSurface::create(
@@ -91,8 +100,9 @@ impl StatusBar {
             &drawable,
             &visual,
             screen.width_in_pixels() as i32,
-            40
-        ).expect("Unable to create Cairo surface.");
+            40,
+        )
+        .expect("Unable to create Cairo surface.");
 
         let bar_height = config.height as f64;
         let bar_width = screen.width_in_pixels() as f64 - (config.margin * 2) as f64;
@@ -110,12 +120,10 @@ impl StatusBar {
 
         let event_tx = tx.clone();
         let conn = self.conn.clone();
-        tokio::task::spawn_blocking(move || {
-            loop {
-                conn.wait_for_event();
-                event_tx.try_send(()).unwrap();
-            }
-       });
+        tokio::task::spawn_blocking(move || loop {
+            conn.wait_for_event();
+            event_tx.try_send(()).unwrap();
+        });
 
         let interval_tx = tx.clone();
         tokio::spawn(async move {
@@ -136,16 +144,10 @@ impl StatusBar {
 
     pub fn draw(&mut self) {
         // Draw title
-        let reply = xcb_util::ewmh::get_active_window(
-            &self.conn,
-            0
-        ).get_reply();
+        let reply = xcb_util::ewmh::get_active_window(&self.conn, 0).get_reply();
 
         let window_name = if let Ok(active_window) = reply {
-            let reply = xcb_util::ewmh::get_wm_name(
-                &self.conn,
-                active_window
-            ).get_reply();
+            let reply = xcb_util::ewmh::get_wm_name(&self.conn, active_window).get_reply();
 
             match reply {
                 Ok(name) => Some(name.string().to_string()),
@@ -158,19 +160,18 @@ impl StatusBar {
         self.surface.bar_title(&self.config, window_name);
 
         // Draw workspaces
-        let reply = xcb_util::ewmh::get_desktop_names(
-            &self.conn,
-            0,
-        ).get_reply().expect("Unable to get desktop names.");
+        let reply = xcb_util::ewmh::get_desktop_names(&self.conn, 0)
+            .get_reply()
+            .expect("Unable to get desktop names.");
 
         let workspaces = reply.strings();
 
-        let active_workspace = xcb_util::ewmh::get_current_desktop(
-            &self.conn,
-            0
-        ).get_reply().unwrap_or(0) as usize;
+        let active_workspace = xcb_util::ewmh::get_current_desktop(&self.conn, 0)
+            .get_reply()
+            .unwrap_or(0) as usize;
 
-        self.surface.workspaces(&self.config, workspaces, active_workspace);
+        self.surface
+            .workspaces(&self.config, workspaces, active_workspace);
 
         // Draw info blocks
         self.surface.draw_info(&self.config);

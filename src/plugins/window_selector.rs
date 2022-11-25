@@ -1,4 +1,4 @@
-use crate::client::{SetActiveWindow, HandleWindowAction};
+use crate::client::{HandleWindowAction, SetActiveWindow};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;

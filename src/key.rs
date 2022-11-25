@@ -1,4 +1,9 @@
-pub fn grab_key(conn: &xcb_util::ewmh::Connection, modifier: u16, keysym: u32, root_window: xcb::Window) {
+pub fn grab_key(
+    conn: &xcb_util::ewmh::Connection,
+    modifier: u16,
+    keysym: u32,
+    root_window: xcb::Window,
+) {
     let key_symbols = xcb_util::keysyms::KeySymbols::new(conn);
     match key_symbols.get_keycode(keysym).next() {
         Some(keycode) => {

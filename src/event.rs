@@ -1,8 +1,8 @@
 use crate::client::Clients;
 use crate::config::Config;
-use std::sync::Arc;
-use std::convert::TryFrom;
 use actix::prelude::*;
+use std::convert::TryFrom;
+use std::sync::Arc;
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -19,15 +19,15 @@ impl Clone for EventContext<xcb::ClientMessageEvent> {
             16 => {
                 let slice = <[u16; 10]>::try_from(self.event.data().data16()).unwrap_or([0; 10]);
                 xcb::ClientMessageData::from_data16(slice)
-            },
+            }
             32 => {
                 let slice = <[u32; 5]>::try_from(self.event.data().data32()).unwrap_or([0; 5]);
                 xcb::ClientMessageData::from_data32(slice)
-            },
+            }
             _ => {
                 let slice = <[u8; 20]>::try_from(self.event.data().data8()).unwrap_or([0; 20]);
                 xcb::ClientMessageData::from_data8(slice)
-            },
+            }
         };
 
         let event = xcb::ClientMessageEvent::new(
@@ -60,7 +60,7 @@ impl Clone for EventContext<xcb::KeyPressEvent> {
             self.event.event_x(),
             self.event.event_y(),
             self.event.state(),
-            self.event.same_screen()
+            self.event.same_screen(),
         );
 
         Self {
@@ -84,7 +84,7 @@ impl Clone for EventContext<xcb::ConfigureRequestEvent> {
             self.event.width(),
             self.event.height(),
             self.event.border_width(),
-            self.event.value_mask()
+            self.event.value_mask(),
         );
 
         Self {
@@ -115,7 +115,7 @@ impl Clone for EventContext<xcb::PropertyNotifyEvent> {
             self.event.window(),
             self.event.atom(),
             self.event.time(),
-            self.event.state()
+            self.event.state(),
         );
 
         Self {
@@ -142,7 +142,7 @@ impl Clone for EventContext<xcb::EnterNotifyEvent> {
             self.event.event_y(),
             self.event.state(),
             self.event.mode(),
-            self.event.same_screen_focus()
+            self.event.same_screen_focus(),
         );
 
         Self {
@@ -159,7 +159,7 @@ impl Clone for EventContext<xcb::UnmapNotifyEvent> {
         let event = xcb::UnmapNotifyEvent::new(
             self.event.event(),
             self.event.window(),
-            self.event.from_configure()
+            self.event.from_configure(),
         );
 
         Self {
@@ -173,10 +173,7 @@ impl Clone for EventContext<xcb::UnmapNotifyEvent> {
 
 impl Clone for EventContext<xcb::DestroyNotifyEvent> {
     fn clone(&self) -> Self {
-        let event = xcb::DestroyNotifyEvent::new(
-            self.event.event(),
-            self.event.window(),
-        );
+        let event = xcb::DestroyNotifyEvent::new(self.event.event(), self.event.window());
 
         Self {
             clients: self.clients.clone(),

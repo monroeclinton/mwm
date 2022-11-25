@@ -1,8 +1,8 @@
-use crate::config::{Config, get_config};
+use crate::config::{get_config, Config};
 use crate::keysym::Keysym;
 use crate::surface::Surface;
-use std::convert::TryFrom;
 use anyhow::Result;
+use std::convert::TryFrom;
 
 // Max items to show in list
 const MAX_ITEMS: usize = 5;
@@ -24,7 +24,10 @@ impl Selector {
 
         let config = get_config();
 
-        let screen = conn.get_setup().roots().next()
+        let screen = conn
+            .get_setup()
+            .roots()
+            .next()
             .expect("Unable to find a screen.");
 
         let window = conn.generate_id();
@@ -40,8 +43,10 @@ impl Selector {
             xcb::WINDOW_CLASS_COPY_FROM_PARENT as u8,
             window,
             screen.root(),
-            x as i16, y as i16,
-            config.width, 1,
+            x as i16,
+            y as i16,
+            config.width,
+            1,
             config.border_thickness,
             xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
             screen.root_visual(),
@@ -55,10 +60,14 @@ impl Selector {
 
         xcb::map_window(&conn, window);
 
-        xcb::configure_window(&conn, window, &[
-            (xcb::CW_EVENT_MASK as u16, xcb::EVENT_MASK_STRUCTURE_NOTIFY),
-            (xcb::CONFIG_WINDOW_STACK_MODE as u16, xcb::STACK_MODE_ABOVE)
-        ]);
+        xcb::configure_window(
+            &conn,
+            window,
+            &[
+                (xcb::CW_EVENT_MASK as u16, xcb::EVENT_MASK_STRUCTURE_NOTIFY),
+                (xcb::CONFIG_WINDOW_STACK_MODE as u16, xcb::STACK_MODE_ABOVE),
+            ],
+        );
 
         let mut grabbed = false;
         while !grabbed {
@@ -69,42 +78,39 @@ impl Selector {
                 xcb::CURRENT_TIME,
                 xcb::GRAB_MODE_ASYNC as u8,
                 xcb::GRAB_MODE_ASYNC as u8,
-            ).get_reply();
+            )
+            .get_reply();
 
             grabbed = match reply {
                 Ok(r) => r.status() == xcb::GRAB_STATUS_SUCCESS as u8,
-                Err(_) => false
+                Err(_) => false,
             };
         }
 
         conn.flush();
 
         // Uses xcb connection which will live length of program.
-        let cairo_conn = unsafe {
-            cairo::XCBConnection::from_raw_none(conn.get_raw_conn() as _)
-        };
+        let cairo_conn = unsafe { cairo::XCBConnection::from_raw_none(conn.get_raw_conn() as _) };
 
         // I wish there was a better way to do this
         // https://xcb.freedesktop.org/xlibtoxcbtranslationguide/
         // https://tronche.com/gui/x/xlib/window/visual-types.html
-        let mut visual_type = screen.allowed_depths()
+        let mut visual_type = screen
+            .allowed_depths()
             .find_map(|depth| {
-                depth.visuals().find(|visual| screen.root_visual() == visual.visual_id())
+                depth
+                    .visuals()
+                    .find(|visual| screen.root_visual() == visual.visual_id())
             })
             .expect("Unable to find visual type of screen.");
 
-        let visual = unsafe {
-            cairo::XCBVisualType::from_raw_none(&mut visual_type.base as *mut _ as _)
-        };
+        let visual =
+            unsafe { cairo::XCBVisualType::from_raw_none(&mut visual_type.base as *mut _ as _) };
 
         let drawable = cairo::XCBDrawable(window);
-        let surface = cairo::XCBSurface::create(
-            &cairo_conn,
-            &drawable,
-            &visual,
-            config.width as i32,
-            1
-        ).expect("Unable to create Cairo surface.");
+        let surface =
+            cairo::XCBSurface::create(&cairo_conn, &drawable, &visual, config.width as i32, 1)
+                .expect("Unable to create Cairo surface.");
 
         let surface = Surface::new(surface);
 
@@ -214,12 +220,8 @@ impl Selector {
         self.configure_window();
         self.surface.clear_surface(&self.config);
 
-        self.surface.draw_title(
-            &self.config,
-            &self.search_input,
-            window_height,
-            item_height
-        );
+        self.surface
+            .draw_title(&self.config, &self.search_input, window_height, item_height);
 
         let commands = self.filtered_commands();
 
@@ -228,12 +230,8 @@ impl Selector {
             selection_index = self.selection_index - (self.commands.len() - MAX_ITEMS);
         }
 
-        self.surface.draw_items(
-            &commands,
-            &self.config,
-            item_height,
-            selection_index
-        );
+        self.surface
+            .draw_items(&commands, &self.config, item_height, selection_index);
 
         self.surface.flush();
         self.conn.flush();
@@ -245,9 +243,7 @@ impl Selector {
         xcb::configure_window(
             &self.conn,
             self.window,
-            &[
-                (xcb::CONFIG_WINDOW_HEIGHT as u16, window_height as u32),
-            ],
+            &[(xcb::CONFIG_WINDOW_HEIGHT as u16, window_height as u32)],
         );
     }
 
@@ -255,7 +251,10 @@ impl Selector {
         self.commands
             .iter()
             .filter(|c| c.starts_with(self.search_input.as_str()))
-            .skip(std::cmp::min(self.commands.len() - MAX_ITEMS as usize, self.selection_index))
+            .skip(std::cmp::min(
+                self.commands.len() - MAX_ITEMS as usize,
+                self.selection_index,
+            ))
             .take(5)
             .collect::<Vec<&String>>()
     }

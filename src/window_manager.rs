@@ -1,11 +1,11 @@
 use crate::client::Clients;
-use crate::config::{Config, get_config};
+use crate::config::{get_config, Config};
 use crate::event::EventContext;
 use crate::key::grab_key;
 use crate::listener::Listener;
 use crate::screen::get_screen;
-use std::sync::Arc;
 use actix::{Actor, Addr, AsyncContext, Context, StreamHandler, Supervised, SystemService};
+use std::sync::Arc;
 
 pub struct WindowManager {
     clients: Addr<Clients>,
@@ -23,20 +23,23 @@ impl Default for WindowManager {
             .map_err(|(e, _)| e)
             .expect("Unable to create EWMH connection.");
 
-        xcb_util::ewmh::set_supported(&conn, screen, &[
-            conn.SUPPORTED(),
-            conn.CLIENT_LIST(),
-            conn.NUMBER_OF_DESKTOPS(),
-            conn.DESKTOP_NAMES(),
-            conn.CURRENT_DESKTOP(),
-            conn.ACTIVE_WINDOW(),
-        ]);
+        xcb_util::ewmh::set_supported(
+            &conn,
+            screen,
+            &[
+                conn.SUPPORTED(),
+                conn.CLIENT_LIST(),
+                conn.NUMBER_OF_DESKTOPS(),
+                conn.DESKTOP_NAMES(),
+                conn.CURRENT_DESKTOP(),
+                conn.ACTIVE_WINDOW(),
+            ],
+        );
 
         let conn = Arc::new(conn);
         let config = Arc::new(get_config());
 
-        let clients = Clients::new(conn.clone(), config.clone())
-            .start();
+        let clients = Clients::new(conn.clone(), config.clone()).start();
 
         Self {
             clients,
@@ -66,14 +69,14 @@ impl Actor for WindowManager {
                 &self.conn,
                 self.config.workspace_modifier,
                 x11::keysym::XK_0 + workspace as u32,
-                screen.root()
+                screen.root(),
             );
 
             grab_key(
                 &self.conn,
                 self.config.workspace_move_window_modifier,
                 x11::keysym::XK_0 + workspace as u32,
-                screen.root()
+                screen.root(),
             );
         }
 
@@ -92,16 +95,14 @@ impl Actor for WindowManager {
         }
 
         for program in &self.config.autostart {
-            std::process::Command::new(program)
-                .spawn()
-                .unwrap();
+            std::process::Command::new(program).spawn().unwrap();
         }
 
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
             let conn = c.clone();
-            let event = tokio::task::spawn_blocking(move || {
-                conn.wait_for_event()
-            }).await.unwrap();
+            let event = tokio::task::spawn_blocking(move || conn.wait_for_event())
+                .await
+                .unwrap();
 
             Some((event, c))
         });

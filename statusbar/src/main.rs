@@ -1,7 +1,7 @@
 mod config;
-mod surface;
 mod screen;
 mod statusbar;
+mod surface;
 
 use statusbar::StatusBar;
 

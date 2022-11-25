@@ -1,6 +1,6 @@
+use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use crate::plugins;
-use crate::event::EventContext;
 
 pub struct Listener {
     plugins: Vec<Box<dyn PluginHandler>>,

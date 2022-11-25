@@ -25,27 +25,27 @@ autostart = [
 [[actions]]
 modifier = 0x0009 # key: l-alt + shift
 keysym = 0x0063 # key: c
-action = "CloseWindow"
+action = "Close"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x006b # key: k
-action = "SelectAboveWindow"
+action = "SelectAbove"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x006a # key: j
-action = "SelectBelowWindow"
+action = "SelectBelow"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x0068 # key: h
-action = "ShrinkFrontWindow"
+action = "ShrinkFront"
 
 [[actions]]
 modifier = 0x0008 # key: l-alt
 keysym = 0x006c # key: l
-action = "ExpandFrontWindow"
+action = "ExpandFront"
 
 # List of commands that are executed
 [[commands]]

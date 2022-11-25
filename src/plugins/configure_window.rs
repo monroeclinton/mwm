@@ -7,7 +7,10 @@ use crate::screen::get_screen;
 pub struct ConfigureWindow;
 
 impl PluginHandler for ConfigureWindow {
-    fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> anyhow::Result<()> {
+    fn on_client_message(
+        &mut self,
+        ectx: EventContext<xcb::ClientMessageEvent>,
+    ) -> anyhow::Result<()> {
         if ectx.event.type_() == ectx.conn.WM_STATE() {
             let data = ectx.event.data().data32();
 
@@ -29,7 +32,10 @@ impl PluginHandler for ConfigureWindow {
         Ok(())
     }
 
-    fn on_configure_request(&mut self, ectx: EventContext<xcb::ConfigureRequestEvent>) -> anyhow::Result<()> {
+    fn on_configure_request(
+        &mut self,
+        ectx: EventContext<xcb::ConfigureRequestEvent>,
+    ) -> anyhow::Result<()> {
         let geomtry = xcb::get_geometry(&ectx.conn, ectx.event.window())
             .get_reply()
             .unwrap();
@@ -49,15 +55,24 @@ impl PluginHandler for ConfigureWindow {
         }
 
         if ectx.event.value_mask() & xcb::CONFIG_WINDOW_BORDER_WIDTH as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, ectx.event.border_width() as u32));
+            values.push((
+                xcb::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                ectx.event.border_width() as u32,
+            ));
         }
 
         if ectx.event.value_mask() & xcb::CONFIG_WINDOW_SIBLING as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_SIBLING as u16, ectx.event.sibling() as u32));
+            values.push((
+                xcb::CONFIG_WINDOW_SIBLING as u16,
+                ectx.event.sibling() as u32,
+            ));
         }
 
         if ectx.event.value_mask() & xcb::CONFIG_WINDOW_STACK_MODE as u16 > 0 {
-            values.push((xcb::CONFIG_WINDOW_STACK_MODE as u16, ectx.event.stack_mode() as u32));
+            values.push((
+                xcb::CONFIG_WINDOW_STACK_MODE as u16,
+                ectx.event.stack_mode() as u32,
+            ));
         }
 
         // Override dialog configure requests to center window
@@ -69,21 +84,24 @@ impl PluginHandler for ConfigureWindow {
             xcb::ATOM_WINDOW,
             0,
             1,
-        ).get_reply();
+        )
+        .get_reply();
 
         let is_transient = match reply {
             Ok(property) => {
-                property.format() == 32 ||
-                property.type_() == xcb::ATOM_WINDOW ||
-                property.value_len() != 0
-            },
+                property.format() == 32
+                    || property.type_() == xcb::ATOM_WINDOW
+                    || property.value_len() != 0
+            }
             _ => false,
         };
 
         let is_dialog = xcb_util::ewmh::get_wm_window_type(&ectx.conn, ectx.event.window())
             .get_reply()
             .map_or(false, |window_type| {
-                window_type.atoms().contains(&ectx.conn.WM_WINDOW_TYPE_DIALOG())
+                window_type
+                    .atoms()
+                    .contains(&ectx.conn.WM_WINDOW_TYPE_DIALOG())
             });
 
         // Override coordinates for dialog windows to center it
@@ -111,10 +129,13 @@ impl PluginHandler for ConfigureWindow {
         Ok(())
     }
 
-    fn on_property_notify(&mut self, ectx: EventContext<xcb::PropertyNotifyEvent>) -> anyhow::Result<()> {
+    fn on_property_notify(
+        &mut self,
+        ectx: EventContext<xcb::PropertyNotifyEvent>,
+    ) -> anyhow::Result<()> {
         if ectx.event.atom() == ectx.conn.WM_WINDOW_TYPE() {
-            let reply = xcb_util::ewmh::get_wm_window_type(&ectx.conn, ectx.event.window())
-                .get_reply();
+            let reply =
+                xcb_util::ewmh::get_wm_window_type(&ectx.conn, ectx.event.window()).get_reply();
 
             if let Ok(reply) = reply {
                 let atoms = reply.atoms();
