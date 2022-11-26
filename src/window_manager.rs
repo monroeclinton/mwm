@@ -11,6 +11,7 @@ pub struct WindowManager {
     clients: Addr<Clients>,
     config: Arc<Config>,
     conn: Arc<xcb_util::ewmh::Connection>,
+    cursor: xcb::Cursor,
     listener: Listener,
 }
 
@@ -41,10 +42,13 @@ impl Default for WindowManager {
 
         let clients = Clients::new(conn.clone(), config.clone()).start();
 
+        let cursor = xcb_util::cursor::create_font_cursor(&conn, xcb_util::cursor::LEFT_PTR);
+
         Self {
             clients,
             config,
             conn,
+            cursor,
             listener: Listener::default(),
         }
     }
@@ -96,6 +100,14 @@ impl Actor for WindowManager {
 
         for program in &self.config.autostart {
             std::process::Command::new(program).spawn().unwrap();
+        }
+
+        let values = [(xcb::CW_CURSOR, self.cursor)];
+
+        let cookie = xcb::change_window_attributes_checked(&self.conn, screen.root(), &values);
+
+        if cookie.request_check().is_err() {
+            panic!("Unable to set cursor icon.")
         }
 
         let events = futures::stream::unfold(self.conn.clone(), |c| async move {
