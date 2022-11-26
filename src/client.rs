@@ -575,7 +575,7 @@ impl Handler<HandleWindowAction> for Clients {
                 }
             }
             Action::SelectBelow => {
-                if clients.len() <= 1 || pos >= clients.len() - 1  {
+                if clients.len() <= 1 || pos >= clients.len() - 1 {
                     0
                 } else {
                     pos + 1
