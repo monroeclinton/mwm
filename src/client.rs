@@ -203,7 +203,8 @@ impl Handler<DestroyClient> for Clients {
         self.clients.retain(|c| c.window != msg.window);
 
         if self.active_window == Some(msg.window) {
-            ctx.notify(SetActiveWindow { window: None });
+            let window = self.clients.front().map_or(None, |c| Some(c.window));
+            ctx.notify(SetActiveWindow { window });
         }
 
         self.set_client_list();
