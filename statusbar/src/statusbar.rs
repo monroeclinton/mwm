@@ -45,6 +45,7 @@ impl StatusBar {
             xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
             screen.root_visual(),
             &[
+                (xcb::CW_EVENT_MASK, xcb::EVENT_MASK_EXPOSURE),
                 (xcb::CW_BACK_PIXEL, config.background_color),
                 (xcb::CW_OVERRIDE_REDIRECT, 0),
             ],
@@ -121,8 +122,13 @@ impl StatusBar {
         let event_tx = tx.clone();
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || loop {
-            conn.wait_for_event();
-            event_tx.try_send(()).unwrap();
+            let force_redraw = conn
+                .wait_for_event()
+                .map_or(false, |e| e.response_type() == xcb::EXPOSE);
+
+            event_tx
+                .blocking_send(force_redraw)
+                .unwrap();
         });
 
         let interval_tx = tx.clone();
@@ -131,18 +137,25 @@ impl StatusBar {
 
             loop {
                 interval.tick().await;
-                let _ = interval_tx.send(()).await;
+                let _ = interval_tx.send(false).await;
             }
         });
 
         loop {
-            self.draw();
+            let force_redraw = rx
+                .recv()
+                .await
+                .unwrap_or(false);
 
-            rx.recv().await;
+            self.draw(force_redraw);
         }
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, force_redraw: bool) {
+        if force_redraw {
+            self.surface.clear(&self.config);
+        }
+
         // Draw title
         let reply = xcb_util::ewmh::get_active_window(&self.conn, 0).get_reply();
 

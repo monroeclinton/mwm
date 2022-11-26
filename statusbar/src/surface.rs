@@ -28,16 +28,22 @@ impl Surface {
         }
     }
 
+    pub fn clear(&mut self, config: &Config) {
+        self.window_name = None;
+        self.workspace_name = None;
+        self.clear_surface(config, 0.0, self.bar_width);
+    }
+
+    pub fn flush(&self) {
+        self.surface.flush();
+    }
+
     fn clear_surface(&mut self, config: &Config, x: f64, width: f64) {
         let context = &self.context;
 
         set_source_rgb(context, config.background_color);
         context.rectangle(x, 0.0, width, self.bar_height);
         context.fill().expect("Unable to clear surface.");
-    }
-
-    pub fn flush(&self) {
-        self.surface.flush();
     }
 
     pub fn workspaces(&mut self, config: &Config, workspaces: Vec<&str>, active_workspace: usize) {
