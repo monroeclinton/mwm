@@ -1,4 +1,3 @@
-use crate::client::HideWindow;
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -8,9 +7,8 @@ pub struct UnmapWindow;
 
 impl PluginHandler for UnmapWindow {
     fn on_unmap_notify(&mut self, ectx: EventContext<xcb::UnmapNotifyEvent>) -> Result<()> {
-        ectx.clients.do_send(HideWindow {
-            window: ectx.event.window(),
-        });
+        let mut clients = ectx.clients.lock().unwrap();
+        clients.hide(ectx.event.window());
 
         Ok(())
     }

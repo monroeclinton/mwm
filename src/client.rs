@@ -1,6 +1,5 @@
 use crate::config::{Action, Config};
 use crate::screen::get_screen;
-use actix::{Actor, AsyncContext, Context, Handler, Message};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
@@ -37,76 +36,14 @@ impl Clients {
         }
     }
 
-    fn get_padding_top(&self) -> usize {
-        self.clients
-            .iter()
-            .filter(|&c| c.visible)
-            .fold(0, |acc, c| acc + c.padding_top as usize)
-    }
-
-    fn set_client_list(&mut self) {
-        xcb_util::ewmh::set_client_list(
-            &self.conn,
-            0,
-            &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>(),
-        );
-
-        let names = (1..=9)
-            .map(|i: u8| {
-                let count = self
-                    .clients
-                    .iter()
-                    .filter(|c| c.workspace == Some(i))
-                    .count();
-
-                let count_string = count
-                    .to_string()
-                    .replace('0', "⁰")
-                    .replace('1', "¹")
-                    .replace('2', "²")
-                    .replace('3', "³")
-                    .replace('4', "⁴")
-                    .replace('5', "⁵")
-                    .replace('6', "⁶")
-                    .replace('7', "⁷")
-                    .replace('8', "⁸")
-                    .replace('9', "⁹");
-
-                if count > 0 {
-                    format!("{}{}", i, count_string)
-                } else {
-                    i.to_string()
-                }
-            })
-            .collect::<Vec<String>>();
-
-        xcb_util::ewmh::set_desktop_names(&self.conn, 0, names.iter().map(|s| s.as_ref()));
-    }
-}
-
-impl Actor for Clients {
-    type Context = Context<Self>;
-}
-
-pub struct CreateClient {
-    pub window: xcb::Window,
-}
-
-impl Message for CreateClient {
-    type Result = ();
-}
-
-impl Handler<CreateClient> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: CreateClient, ctx: &mut Self::Context) -> Self::Result {
-        let already_created = self.clients.iter().any(|c| c.window == msg.window);
+    pub fn create(&mut self, window: xcb::Window) {
+        let already_created = self.clients.iter().any(|c| c.window == window);
 
         if already_created {
             return;
         }
 
-        let reply = xcb_util::ewmh::get_wm_window_type(&self.conn, msg.window).get_reply();
+        let reply = xcb_util::ewmh::get_wm_window_type(&self.conn, window).get_reply();
 
         let mut controlled = true;
 
@@ -114,7 +51,7 @@ impl Handler<CreateClient> for Clients {
             let atoms = window_type.atoms();
             for atom in atoms {
                 if *atom == self.conn.WM_WINDOW_TYPE_DOCK() {
-                    self.dock_window = Some(msg.window);
+                    self.dock_window = Some(window);
                     controlled = false;
                 }
 
@@ -124,7 +61,7 @@ impl Handler<CreateClient> for Clients {
             }
         }
 
-        let cookie = xcb_util::ewmh::get_wm_strut_partial(&self.conn, msg.window).get_reply();
+        let cookie = xcb_util::ewmh::get_wm_strut_partial(&self.conn, window).get_reply();
 
         // TODO: Add other paddings
         let padding_top = if let Ok(struct_partial) = cookie {
@@ -140,7 +77,7 @@ impl Handler<CreateClient> for Clients {
         };
 
         self.clients.push_front(Client {
-            window: msg.window,
+            window,
             workspace,
             visible: true,
             controlled,
@@ -149,10 +86,10 @@ impl Handler<CreateClient> for Clients {
         });
 
         // Ensure border width and color is set for non-dock windows
-        if self.dock_window != Some(msg.window) {
+        if self.dock_window != Some(window) {
             xcb::configure_window(
                 &self.conn,
-                msg.window,
+                window,
                 &[(
                     xcb::CONFIG_WINDOW_BORDER_WIDTH as u16,
                     self.config.border_thickness,
@@ -161,71 +98,64 @@ impl Handler<CreateClient> for Clients {
 
             xcb::change_window_attributes(
                 &self.conn,
-                msg.window,
+                window,
                 &[(xcb::CW_BORDER_PIXEL, self.config.inactive_border)],
             );
+
+            // Set window as active
+            self.set_active_window(Some(window));
         }
 
         // Make sure window does not overlap with statusbar
         if controlled {
             xcb::configure_window(
                 &self.conn,
-                msg.window,
+                window,
                 &[(xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)],
             );
-
-            // Set window as active
-            ctx.notify(SetActiveWindow {
-                window: Some(msg.window),
-            });
         }
 
-        xcb::map_window(&self.conn, msg.window);
+        xcb::map_window(&self.conn, window);
 
         self.conn.flush();
 
         self.set_client_list();
     }
-}
 
-pub struct DestroyClient {
-    pub window: xcb::Window,
-}
+    pub fn destroy(&mut self, window: xcb::Window) {
+        self.clients.retain(|c| c.window != window);
 
-impl Message for DestroyClient {
-    type Result = ();
-}
-
-impl Handler<DestroyClient> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: DestroyClient, ctx: &mut Self::Context) -> Self::Result {
-        self.clients.retain(|c| c.window != msg.window);
-
-        if self.active_window == Some(msg.window) {
-            let window = self
+        if self.active_window == Some(window) {
+            let active_window = self
                 .clients
                 .iter()
                 .filter(|c| c.controlled)
                 .next()
                 .map_or(None, |c| Some(c.window));
-            ctx.notify(SetActiveWindow { window });
+            self.set_active_window(active_window);
         }
 
         self.set_client_list();
     }
-}
 
-pub struct ResizeClients;
+    pub fn hide(&mut self, window: xcb::Window) {
+        for mut client in self.clients.iter_mut() {
+            if window == client.window {
+                if client.visible {
+                    xcb::unmap_window(&self.conn, client.window);
+                }
 
-impl Message for ResizeClients {
-    type Result = ();
-}
+                client.visible = false;
+                break;
+            }
+        }
 
-impl Handler<ResizeClients> for Clients {
-    type Result = ();
+        self.conn.flush();
 
-    fn handle(&mut self, _msg: ResizeClients, _ctx: &mut Self::Context) -> Self::Result {
+        self.resize();
+    }
+
+    pub fn resize(&mut self) {
         let screen = get_screen(&self.conn);
 
         let screen_width = screen.width_in_pixels() as usize;
@@ -311,97 +241,18 @@ impl Handler<ResizeClients> for Clients {
 
         self.conn.flush();
     }
-}
 
-pub struct HideWindow {
-    pub window: xcb::Window,
-}
-
-impl Message for HideWindow {
-    type Result = ();
-}
-
-impl Handler<HideWindow> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: HideWindow, ctx: &mut Self::Context) -> Self::Result {
+    pub fn set_controlled_status(&mut self, window: xcb::Window, status: bool) {
         for mut client in self.clients.iter_mut() {
-            if msg.window == client.window {
-                if client.visible {
-                    xcb::unmap_window(&self.conn, client.window);
-                }
-
-                client.visible = false;
-                break;
-            }
-        }
-
-        self.conn.flush();
-
-        ctx.notify(ResizeClients);
-    }
-}
-
-pub struct SetControlledStatus {
-    pub window: xcb::Window,
-    pub status: bool,
-}
-
-impl Message for SetControlledStatus {
-    type Result = ();
-}
-
-impl Handler<SetControlledStatus> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetControlledStatus, _ctx: &mut Self::Context) -> Self::Result {
-        for mut client in self.clients.iter_mut() {
-            if msg.window == client.window {
-                client.controlled = msg.status;
+            if window == client.window {
+                client.controlled = status;
                 break;
             }
         }
     }
-}
 
-pub struct SetFullScreenStatus {
-    pub window: xcb::Window,
-    pub status: Option<bool>,
-    pub toggle: bool,
-}
-
-impl Message for SetFullScreenStatus {
-    type Result = ();
-}
-
-impl Handler<SetFullScreenStatus> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetFullScreenStatus, ctx: &mut Self::Context) -> Self::Result {
-        for mut client in self.clients.iter_mut() {
-            if msg.window == client.window {
-                client.full_screen =
-                    Some(true) == msg.status || (!client.full_screen && msg.toggle);
-                ctx.notify(ResizeClients);
-                break;
-            }
-        }
-    }
-}
-
-pub struct SetActiveWorkspace {
-    pub workspace: u8,
-}
-
-impl Message for SetActiveWorkspace {
-    type Result = ();
-}
-
-impl Handler<SetActiveWorkspace> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetActiveWorkspace, ctx: &mut Self::Context) -> Self::Result {
-        self.active_workspace = msg.workspace;
+    pub fn set_active_workspace(&mut self, workspace: u8) {
+        self.active_workspace = workspace;
 
         for mut client in self.clients.iter_mut().filter(|c| c.controlled) {
             if Some(self.active_workspace) == client.workspace {
@@ -421,34 +272,22 @@ impl Handler<SetActiveWorkspace> for Clients {
 
         xcb_util::ewmh::set_current_desktop(&self.conn, 0, self.active_workspace as u32);
 
-        ctx.notify(SetActiveWindow { window: None });
+        self.set_active_window(None);
 
-        ctx.notify(ResizeClients);
+        self.resize();
 
         self.conn.flush();
     }
-}
 
-pub struct SetActiveWindow {
-    pub window: Option<xcb::Window>,
-}
-
-impl Message for SetActiveWindow {
-    type Result = ();
-}
-
-impl Handler<SetActiveWindow> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetActiveWindow, _ctx: &mut Self::Context) -> Self::Result {
-        if msg.window == self.active_window || msg.window == self.dock_window {
+    pub fn set_active_window(&mut self, window: Option<xcb::Window>) {
+        if window == self.dock_window {
             return;
         }
 
-        if let Some(window) = msg.window {
-            let active_border = self.config.active_border;
-            let inactive_border = self.config.inactive_border;
+        let active_border = self.config.active_border;
+        let inactive_border = self.config.inactive_border;
 
+        if let Some(window) = window {
             xcb::set_input_focus(
                 &self.conn,
                 xcb::INPUT_FOCUS_PARENT as u8,
@@ -460,8 +299,11 @@ impl Handler<SetActiveWindow> for Clients {
                 window,
                 &[(xcb::CW_BORDER_PIXEL, active_border)],
             );
-            xcb_util::ewmh::set_active_window(&self.conn, 0, window);
+        }
 
+        xcb_util::ewmh::set_active_window(&self.conn, 0, window.unwrap_or(xcb::WINDOW_NONE));
+
+        if window != self.active_window {
             if let Some(active_window) = self.active_window {
                 xcb::change_window_attributes(
                     &self.conn,
@@ -469,38 +311,23 @@ impl Handler<SetActiveWindow> for Clients {
                     &[(xcb::CW_BORDER_PIXEL, inactive_border)],
                 );
             }
-        } else {
-            xcb_util::ewmh::set_active_window(&self.conn, 0, 0);
-        }
 
-        self.active_window = msg.window;
+            self.active_window = window;
+        }
 
         self.conn.flush();
     }
-}
 
-pub struct SetWindowWorkspace {
-    pub window: xcb::Window,
-    pub workspace: Option<u8>,
-}
-
-impl Message for SetWindowWorkspace {
-    type Result = ();
-}
-
-impl Handler<SetWindowWorkspace> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetWindowWorkspace, ctx: &mut Self::Context) -> Self::Result {
-        if Some(self.active_workspace) == msg.workspace {
+    pub fn set_window_workspace(&mut self, window: xcb::Window, workspace: Option<u8>) {
+        if Some(self.active_workspace) == workspace {
             return;
         }
 
         for client in self.clients.iter_mut() {
-            if client.window == msg.window {
-                client.workspace = msg.workspace;
+            if client.window == window {
+                client.workspace = workspace;
 
-                ctx.notify(HideWindow { window: msg.window });
+                self.hide(window);
 
                 break;
             }
@@ -508,23 +335,20 @@ impl Handler<SetWindowWorkspace> for Clients {
 
         self.set_client_list();
     }
-}
 
-pub struct HandleWindowAction {
-    pub action: Action,
-    pub window: xcb::Window,
-}
+    pub fn set_full_screen(&mut self, window: xcb::Window, status: Option<bool>, toggle: bool) {
+        for mut client in self.clients.iter_mut() {
+            if window == client.window {
+                client.full_screen = Some(true) == status || (!client.full_screen && toggle);
+                self.resize();
+                break;
+            }
+        }
+    }
 
-impl Message for HandleWindowAction {
-    type Result = ();
-}
-
-impl Handler<HandleWindowAction> for Clients {
-    type Result = ();
-
-    fn handle(&mut self, msg: HandleWindowAction, ctx: &mut Self::Context) -> Self::Result {
+    pub fn handle_action(&mut self, _window: xcb::Window, action: Action) {
         // Handle close action
-        if let (Action::Close, Some(window)) = (&msg.action, self.active_window) {
+        if let (Action::Close, Some(window)) = (&action, self.active_window) {
             let delete_window = xcb::intern_atom(&self.conn, false, "WM_DELETE_WINDOW")
                 .get_reply()
                 .unwrap();
@@ -570,7 +394,7 @@ impl Handler<HandleWindowAction> for Clients {
             .unwrap_or(0);
 
         // Handle the selection actions
-        let new_pos = match msg.action {
+        let new_pos = match action {
             Action::SelectAbove => {
                 if clients.len() <= 1 {
                     0
@@ -592,9 +416,7 @@ impl Handler<HandleWindowAction> for Clients {
 
         let active_client = clients.get(new_pos);
         if let Some(client) = active_client {
-            ctx.notify(SetActiveWindow {
-                window: Some(client.window),
-            });
+            self.set_active_window(Some(client.window));
         }
 
         // Handle the window sizing actions
@@ -603,7 +425,7 @@ impl Handler<HandleWindowAction> for Clients {
             .entry(self.active_workspace)
             .or_insert(0.5);
 
-        match msg.action {
+        match action {
             Action::ShrinkFront => {
                 if *size > 0.10 {
                     *size -= 0.05;
@@ -617,6 +439,52 @@ impl Handler<HandleWindowAction> for Clients {
             _ => (),
         };
 
-        ctx.notify(ResizeClients);
+        self.resize();
+    }
+
+    fn get_padding_top(&self) -> usize {
+        self.clients
+            .iter()
+            .filter(|&c| c.visible)
+            .fold(0, |acc, c| acc + c.padding_top as usize)
+    }
+
+    fn set_client_list(&mut self) {
+        xcb_util::ewmh::set_client_list(
+            &self.conn,
+            0,
+            &self.clients.iter().map(|c| c.window).collect::<Vec<u32>>(),
+        );
+
+        let names = (1..=9)
+            .map(|i: u8| {
+                let count = self
+                    .clients
+                    .iter()
+                    .filter(|c| c.workspace == Some(i))
+                    .count();
+
+                let count_string = count
+                    .to_string()
+                    .replace('0', "⁰")
+                    .replace('1', "¹")
+                    .replace('2', "²")
+                    .replace('3', "³")
+                    .replace('4', "⁴")
+                    .replace('5', "⁵")
+                    .replace('6', "⁶")
+                    .replace('7', "⁷")
+                    .replace('8', "⁸")
+                    .replace('9', "⁹");
+
+                if count > 0 {
+                    format!("{}{}", i, count_string)
+                } else {
+                    i.to_string()
+                }
+            })
+            .collect::<Vec<String>>();
+
+        xcb_util::ewmh::set_desktop_names(&self.conn, 0, names.iter().map(|s| s.as_ref()));
     }
 }

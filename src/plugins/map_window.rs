@@ -1,4 +1,3 @@
-use crate::client::CreateClient;
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -23,9 +22,8 @@ impl PluginHandler for MapWindow {
             )],
         );
 
-        ectx.clients.do_send(CreateClient {
-            window: ectx.event.window(),
-        });
+        let mut clients = ectx.clients.lock().unwrap();
+        clients.create(ectx.event.window());
 
         Ok(())
     }

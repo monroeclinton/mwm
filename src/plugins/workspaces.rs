@@ -1,4 +1,3 @@
-use crate::client::{SetActiveWorkspace, SetWindowWorkspace};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -9,7 +8,8 @@ pub struct Workspaces;
 impl PluginHandler for Workspaces {
     fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
         if ectx.event.type_() == ectx.conn.CURRENT_DESKTOP() {
-            ectx.clients.do_send(SetActiveWorkspace { workspace: 1 });
+            let mut clients = ectx.clients.lock().unwrap();
+            clients.set_active_workspace(1);
         }
 
         Ok(())
@@ -34,15 +34,14 @@ impl PluginHandler for Workspaces {
         drop(key_symbols);
 
         if let Some(workspace) = active_workspace {
+            let mut clients = ectx.clients.lock().unwrap();
+
             if ectx.config.workspace_modifier == ectx.event.state() {
-                ectx.clients.do_send(SetActiveWorkspace { workspace });
+                clients.set_active_workspace(workspace);
             }
 
             if ectx.config.workspace_move_window_modifier == ectx.event.state() {
-                ectx.clients.do_send(SetWindowWorkspace {
-                    window: ectx.event.child(),
-                    workspace: Some(workspace),
-                });
+                clients.set_window_workspace(ectx.event.child(), Some(workspace));
             }
         }
 

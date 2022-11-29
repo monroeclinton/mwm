@@ -2,11 +2,11 @@ use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use crate::plugins;
 
-pub struct Listener {
+pub struct Handler {
     plugins: Vec<Box<dyn PluginHandler>>,
 }
 
-impl Default for Listener {
+impl Default for Handler {
     fn default() -> Self {
         Self {
             plugins: vec![
@@ -23,7 +23,7 @@ impl Default for Listener {
     }
 }
 
-impl Listener {
+impl Handler {
     pub fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) {
         self.plugins
             .iter_mut()

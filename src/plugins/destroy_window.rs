@@ -1,4 +1,3 @@
-use crate::client::DestroyClient;
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use anyhow::Result;
@@ -8,9 +7,8 @@ pub struct DestroyWindow;
 
 impl PluginHandler for DestroyWindow {
     fn on_destroy_notify(&mut self, ectx: EventContext<xcb::DestroyNotifyEvent>) -> Result<()> {
-        ectx.clients.do_send(DestroyClient {
-            window: ectx.event.window(),
-        });
+        let mut clients = ectx.clients.lock().unwrap();
+        clients.destroy(ectx.event.window());
 
         Ok(())
     }

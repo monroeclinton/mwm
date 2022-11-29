@@ -1,4 +1,3 @@
-use crate::client::{SetControlledStatus, SetFullScreenStatus};
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
 use crate::screen::get_screen;
@@ -22,11 +21,8 @@ impl PluginHandler for ConfigureWindow {
 
             let toggle = data[1] == xcb_util::ewmh::STATE_TOGGLE;
 
-            ectx.clients.do_send(SetFullScreenStatus {
-                window: ectx.event.window(),
-                status: is_full_screen,
-                toggle,
-            });
+            let mut clients = ectx.clients.lock().unwrap();
+            clients.set_full_screen(ectx.event.window(), is_full_screen, toggle);
         }
 
         Ok(())
@@ -142,10 +138,8 @@ impl PluginHandler for ConfigureWindow {
 
                 for atom in atoms {
                     if *atom == ectx.conn.WM_WINDOW_TYPE_DOCK() {
-                        ectx.clients.do_send(SetControlledStatus {
-                            window: ectx.event.window(),
-                            status: false,
-                        });
+                        let mut clients = ectx.clients.lock().unwrap();
+                        clients.set_controlled_status(ectx.event.window(), false);
                     }
                 }
             }

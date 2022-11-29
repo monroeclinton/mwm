@@ -1,13 +1,10 @@
 use crate::client::Clients;
 use crate::config::Config;
-use actix::prelude::*;
 use std::convert::TryFrom;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-#[derive(Message)]
-#[rtype(result = "()")]
 pub struct EventContext<E> {
-    pub clients: Addr<Clients>,
+    pub clients: Arc<Mutex<Clients>>,
     pub config: Arc<Config>,
     pub conn: Arc<xcb_util::ewmh::Connection>,
     pub event: E,

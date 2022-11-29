@@ -2,21 +2,19 @@ use crate::client::Clients;
 use crate::config::{get_config, Config};
 use crate::event::EventContext;
 use crate::key::grab_key;
-use crate::listener::Listener;
+use crate::handler::Handler;
 use crate::screen::get_screen;
-use actix::{Actor, Addr, AsyncContext, Context, StreamHandler, Supervised, SystemService};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct WindowManager {
-    clients: Addr<Clients>,
+    clients: Arc<Mutex<Clients>>,
     config: Arc<Config>,
     conn: Arc<xcb_util::ewmh::Connection>,
     cursor: xcb::Cursor,
-    listener: Listener,
 }
 
-impl Default for WindowManager {
-    fn default() -> Self {
+impl WindowManager {
+    pub fn new() -> Self {
         let (conn, screen) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY environment variable.");
 
@@ -40,7 +38,7 @@ impl Default for WindowManager {
         let conn = Arc::new(conn);
         let config = Arc::new(get_config());
 
-        let clients = Clients::new(conn.clone(), config.clone()).start();
+        let clients = Arc::new(Mutex::new(Clients::new(conn.clone(), config.clone())));
 
         let cursor = xcb_util::cursor::create_font_cursor(&conn, xcb_util::cursor::LEFT_PTR);
 
@@ -49,15 +47,10 @@ impl Default for WindowManager {
             config,
             conn,
             cursor,
-            listener: Listener::default(),
         }
     }
-}
 
-impl Actor for WindowManager {
-    type Context = Context<Self>;
-
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    pub fn run(self) {
         let screen = get_screen(&self.conn);
 
         for command in &self.config.commands {
@@ -110,99 +103,94 @@ impl Actor for WindowManager {
             panic!("Unable to set cursor icon.")
         }
 
-        let events = futures::stream::unfold(self.conn.clone(), |c| async move {
-            let conn = c.clone();
-            let event = tokio::task::spawn_blocking(move || conn.wait_for_event())
-                .await
-                .unwrap();
+        loop {
+            if let Some(event) = self.conn.wait_for_event() {
+                let clients = self.clients.clone();
+                let config = self.config.clone();
+                let conn = self.conn.clone();
 
-            Some((event, c))
-        });
-
-        ctx.add_stream(events);
-    }
-}
-
-impl Supervised for WindowManager {}
-impl SystemService for WindowManager {}
-
-impl StreamHandler<Option<xcb::GenericEvent>> for WindowManager {
-    fn handle(&mut self, event: Option<xcb::GenericEvent>, _ctx: &mut Context<Self>) {
-        if let Some(e) = event {
-            let clients = self.clients.clone();
-            let config = self.config.clone();
-            let conn = self.conn.clone();
-
-            match e.response_type() & !0x80 {
-                xcb::CLIENT_MESSAGE => self.listener.on_client_message(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(e)
-                    },
-                }),
-                xcb::KEY_PRESS => self.listener.on_key_press(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(e)
-                    },
-                }),
-                xcb::CONFIGURE_REQUEST => self.listener.on_configure_request(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(e)
-                    },
-                }),
-                xcb::MAP_REQUEST => self.listener.on_map_request(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(e)
-                    },
-                }),
-                xcb::PROPERTY_NOTIFY => self.listener.on_property_notify(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(e)
-                    },
-                }),
-                xcb::ENTER_NOTIFY => self.listener.on_enter_notify(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(e)
-                    },
-                }),
-                xcb::UNMAP_NOTIFY => self.listener.on_unmap_notify(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(e)
-                    },
-                }),
-                xcb::DESTROY_NOTIFY => self.listener.on_destroy_notify(EventContext {
-                    clients,
-                    config,
-                    conn: conn.clone(),
-                    event: unsafe {
-                        std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(e)
-                    },
-                }),
-                // Events we do not care about
-                _ => (),
-            };
-
-            conn.flush();
+                tokio::spawn(Self::handle(clients, config, conn, event));
+            }
         }
+    }
+
+    async fn handle(
+        clients: Arc<Mutex<Clients>>,
+        config: Arc<Config>,
+        conn: Arc<xcb_util::ewmh::Connection>,
+        event: xcb::GenericEvent,
+    ) {
+        let mut handler = Handler::default();
+
+        match event.response_type() & !0x80 {
+            xcb::CLIENT_MESSAGE => handler.on_client_message(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::ClientMessageEvent>(event)
+                },
+            }),
+            xcb::KEY_PRESS => handler.on_key_press(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::KeyPressEvent>(event)
+                },
+            }),
+            xcb::CONFIGURE_REQUEST => handler.on_configure_request(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::ConfigureRequestEvent>(event)
+                },
+            }),
+            xcb::MAP_REQUEST => handler.on_map_request(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::MapRequestEvent>(event)
+                },
+            }),
+            xcb::PROPERTY_NOTIFY => handler.on_property_notify(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::PropertyNotifyEvent>(event)
+                },
+            }),
+            xcb::ENTER_NOTIFY => handler.on_enter_notify(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::EnterNotifyEvent>(event)
+                },
+            }),
+            xcb::UNMAP_NOTIFY => handler.on_unmap_notify(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::UnmapNotifyEvent>(event)
+                },
+            }),
+            xcb::DESTROY_NOTIFY => handler.on_destroy_notify(EventContext {
+                clients,
+                config,
+                conn: conn.clone(),
+                event: unsafe {
+                    std::mem::transmute::<xcb::GenericEvent, xcb::DestroyNotifyEvent>(event)
+                },
+            }),
+            // Events we do not care about
+            _ => (),
+        };
+
+        conn.flush();
     }
 }
