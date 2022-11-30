@@ -1,8 +1,8 @@
 use crate::client::Clients;
 use crate::config::{get_config, Config};
 use crate::event::EventContext;
-use crate::key::grab_key;
 use crate::handler::Handler;
+use crate::key::grab_key;
 use crate::screen::get_screen;
 use std::sync::{Arc, Mutex};
 
