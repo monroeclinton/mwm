@@ -103,6 +103,8 @@ impl WindowManager {
             panic!("Unable to set cursor icon.")
         }
 
+        tracing::info!("Started window manager.");
+
         loop {
             if let Some(event) = self.conn.wait_for_event() {
                 let clients = self.clients.clone();
@@ -114,6 +116,7 @@ impl WindowManager {
         }
     }
 
+    #[tracing::instrument(skip_all, name = "event_handle")]
     async fn handle(
         clients: Arc<Mutex<Clients>>,
         config: Arc<Config>,
@@ -122,7 +125,11 @@ impl WindowManager {
     ) {
         let mut handler = Handler::default();
 
-        match event.response_type() & !0x80 {
+        let response_type = event.response_type() & !0x80;
+
+        tracing::debug!("response_type={}", response_type);
+
+        match response_type {
             xcb::CLIENT_MESSAGE => handler.on_client_message(EventContext {
                 clients,
                 config,
