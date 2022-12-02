@@ -12,6 +12,8 @@ members = [
 [dependencies]
 anyhow = "1.0.56"
 serde = { version = "1.0.137", features = ["derive"] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
 tokio = { version = "1.18.2", features = ["rt-multi-thread", "macros"] }
 toml = "0.5.9"
 x11 = "2.19.1"
