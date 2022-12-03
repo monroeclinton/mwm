@@ -5,6 +5,7 @@ impl Clients {
         let already_created = self.clients.iter().any(|c| c.window == window);
 
         if already_created {
+            tracing::debug!("client already created");
             return;
         }
 
@@ -85,5 +86,7 @@ impl Clients {
         self.conn.flush();
 
         self.refresh_clients();
+
+        tracing::debug!("client created");
     }
 }

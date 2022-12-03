@@ -2,6 +2,8 @@ use crate::client::Clients;
 
 impl Clients {
     pub fn destroy(&mut self, window: xcb::Window) {
+        tracing::debug!("destroying client; window={}", window);
+
         self.clients.retain(|c| c.window != window);
 
         if self.active_window == Some(window) {
@@ -18,6 +20,8 @@ impl Clients {
     }
 
     pub fn hide(&mut self, window: xcb::Window) {
+        tracing::debug!("hiding client; window={}", window);
+
         for mut client in self.clients.iter_mut() {
             if window == client.window {
                 if client.visible {
@@ -35,6 +39,8 @@ impl Clients {
     }
 
     pub fn set_controlled_status(&mut self, window: xcb::Window, status: bool) {
+        tracing::debug!("set controlled status; window={}", window);
+
         for mut client in self.clients.iter_mut() {
             if window == client.window {
                 client.controlled = status;
@@ -52,6 +58,7 @@ impl Clients {
         let inactive_border = self.config.inactive_border;
 
         if let Some(window) = window {
+            tracing::debug!("set active status; window={:?}", window);
             xcb::set_input_focus(
                 &self.conn,
                 xcb::INPUT_FOCUS_PARENT as u8,
@@ -68,6 +75,10 @@ impl Clients {
         xcb_util::ewmh::set_active_window(&self.conn, 0, window.unwrap_or(xcb::WINDOW_NONE));
 
         if window != self.active_window {
+            tracing::debug!(
+                "set previous active window to inactive; previous_window={:?}",
+                self.active_window
+            );
             if let Some(active_window) = self.active_window {
                 xcb::change_window_attributes(
                     &self.conn,

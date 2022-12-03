@@ -127,8 +127,6 @@ impl WindowManager {
 
         let response_type = event.response_type() & !0x80;
 
-        tracing::debug!("response_type={}", response_type);
-
         match response_type {
             xcb::CLIENT_MESSAGE => handler.on_client_message(EventContext {
                 clients,

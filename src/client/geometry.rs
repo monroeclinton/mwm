@@ -10,6 +10,8 @@ impl Clients {
     }
 
     pub fn resize(&mut self) {
+        tracing::debug!("resizing clients");
+
         let screen = get_screen(&self.conn);
 
         let screen_width = screen.width_in_pixels() as usize;

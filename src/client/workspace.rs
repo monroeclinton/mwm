@@ -2,6 +2,8 @@ use crate::client::Clients;
 
 impl Clients {
     pub fn set_active_workspace(&mut self, workspace: u8) {
+        tracing::debug!("set active workspace; workspace={}", workspace);
+
         self.active_workspace = workspace;
 
         for mut client in self.clients.iter_mut().filter(|c| c.controlled) {
@@ -30,6 +32,8 @@ impl Clients {
     }
 
     pub fn set_window_workspace(&mut self, window: xcb::Window, workspace: Option<u8>) {
+        tracing::debug!("moving window to workspace; workspace={:?}", workspace);
+
         if Some(self.active_workspace) == workspace {
             return;
         }
