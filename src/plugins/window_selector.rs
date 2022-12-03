@@ -1,6 +1,5 @@
 use crate::event::EventContext;
 use crate::plugin::PluginHandler;
-use crate::screen::get_screen;
 use anyhow::Result;
 
 #[derive(Default)]
@@ -33,16 +32,8 @@ impl PluginHandler for WindowSelector {
     }
 
     fn on_enter_notify(&mut self, ectx: EventContext<xcb::EnterNotifyEvent>) -> Result<()> {
-        let mode = ectx.event.mode() as u32;
-        let detail = ectx.event.detail() as u32;
-
-        let screen = get_screen(&ectx.conn);
-        let from_root = ectx.event.root() == screen.root();
-
-        if mode == xcb::NOTIFY_MODE_NORMAL && detail != xcb::NOTIFY_DETAIL_INFERIOR && !from_root {
-            let mut clients = ectx.clients.lock().unwrap();
-            clients.set_active_window(Some(ectx.event.event()));
-        }
+        let mut clients = ectx.clients.lock().unwrap();
+        clients.set_active_window(Some(ectx.event.event()));
 
         Ok(())
     }

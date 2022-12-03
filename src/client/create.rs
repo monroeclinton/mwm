@@ -9,6 +9,8 @@ impl Clients {
             return;
         }
 
+        self.enable_event_mask(window);
+
         let reply = xcb_util::ewmh::get_wm_window_type(&self.conn, window).get_reply();
 
         let mut controlled = true;

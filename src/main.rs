@@ -8,9 +8,9 @@ mod plugins;
 mod screen;
 mod window_manager;
 
-use window_manager::WindowManager;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
+use window_manager::WindowManager;
 
 #[tokio::main]
 async fn main() {

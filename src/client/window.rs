@@ -38,6 +38,34 @@ impl Clients {
         self.resize();
     }
 
+    pub fn enable_event_mask(&self, window: xcb::Window) {
+        tracing::debug!("enable event mask; window={}", window);
+
+        xcb::change_window_attributes(
+            &self.conn,
+            window,
+            &[(
+                xcb::CW_EVENT_MASK,
+                xcb::EVENT_MASK_PROPERTY_CHANGE
+                    | xcb::EVENT_MASK_STRUCTURE_NOTIFY
+                    | xcb::EVENT_MASK_ENTER_WINDOW,
+            )],
+        );
+    }
+
+    pub fn disable_event_mask(&self, window: xcb::Window) {
+        tracing::debug!("disable event mask; window={}", window);
+
+        xcb::change_window_attributes(
+            &self.conn,
+            window,
+            &[(
+                xcb::CW_EVENT_MASK,
+                xcb::EVENT_MASK_PROPERTY_CHANGE | xcb::EVENT_MASK_STRUCTURE_NOTIFY,
+            )],
+        );
+    }
+
     pub fn set_controlled_status(&mut self, window: xcb::Window, status: bool) {
         tracing::debug!("set controlled status; window={}", window);
 

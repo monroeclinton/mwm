@@ -67,6 +67,8 @@ impl Clients {
                 }
             }
 
+            self.disable_event_mask(client.window);
+
             xcb::configure_window(
                 &self.conn,
                 client.window,
@@ -78,6 +80,8 @@ impl Clients {
                     (xcb::CONFIG_WINDOW_BORDER_WIDTH as u16, border as u32),
                 ],
             );
+
+            self.enable_event_mask(client.window);
         }
 
         // Full screen windows
