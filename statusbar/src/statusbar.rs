@@ -160,6 +160,12 @@ impl StatusBar {
         let reply = xcb_util::ewmh::get_active_window(&self.conn, 0).get_reply();
 
         let window_name = if let Ok(active_window) = reply {
+            xcb::change_window_attributes(
+                &self.conn,
+                active_window,
+                &[(xcb::CW_EVENT_MASK, xcb::EVENT_MASK_PROPERTY_CHANGE)],
+            );
+
             let reply = xcb_util::ewmh::get_wm_name(&self.conn, active_window).get_reply();
 
             match reply {
