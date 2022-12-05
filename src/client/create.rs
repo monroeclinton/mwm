@@ -89,6 +89,10 @@ impl Clients {
 
         self.refresh_clients();
 
-        tracing::debug!("client created");
+        tracing::debug!(
+            "client created; controlled={}; window={}",
+            controlled,
+            window
+        );
     }
 }
