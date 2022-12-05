@@ -6,13 +6,6 @@ use anyhow::Result;
 pub struct WindowSelector;
 
 impl PluginHandler for WindowSelector {
-    fn on_client_message(&mut self, ectx: EventContext<xcb::ClientMessageEvent>) -> Result<()> {
-        let mut clients = ectx.clients.lock().unwrap();
-        clients.set_active_window(Some(ectx.event.window()));
-
-        Ok(())
-    }
-
     fn on_key_press(&mut self, ectx: EventContext<xcb::KeyPressEvent>) -> Result<()> {
         let key_symbols = xcb_util::keysyms::KeySymbols::new(&ectx.conn);
 
