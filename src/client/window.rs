@@ -125,6 +125,23 @@ impl Clients {
         for mut client in self.clients.iter_mut() {
             if window == client.window {
                 client.full_screen = Some(true) == status || (!client.full_screen && toggle);
+
+                let data = if client.full_screen {
+                    self.conn.WM_STATE_FULLSCREEN()
+                } else {
+                    0
+                };
+
+                xcb::change_property(
+                    &self.conn,
+                    xcb::PROP_MODE_REPLACE as u8,
+                    window,
+                    self.conn.WM_STATE(),
+                    xcb::ATOM_ATOM,
+                    32,
+                    &[data],
+                );
+
                 self.resize();
                 break;
             }
