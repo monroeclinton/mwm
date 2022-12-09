@@ -15,25 +15,12 @@ pub struct WindowManager {
 
 impl WindowManager {
     pub fn new() -> Self {
-        let (conn, screen) = xcb::Connection::connect(None)
+        let (conn, _) = xcb::Connection::connect(None)
             .expect("Unable to access your display. Check your DISPLAY environment variable.");
 
         let conn = xcb_util::ewmh::Connection::connect(conn)
             .map_err(|(e, _)| e)
             .expect("Unable to create EWMH connection.");
-
-        xcb_util::ewmh::set_supported(
-            &conn,
-            screen,
-            &[
-                conn.SUPPORTED(),
-                conn.CLIENT_LIST(),
-                conn.NUMBER_OF_DESKTOPS(),
-                conn.DESKTOP_NAMES(),
-                conn.CURRENT_DESKTOP(),
-                conn.ACTIVE_WINDOW(),
-            ],
-        );
 
         let conn = Arc::new(conn);
         let config = Arc::new(get_config());
@@ -52,6 +39,45 @@ impl WindowManager {
 
     pub fn run(self) {
         let screen = get_screen(&self.conn);
+
+        xcb_util::ewmh::set_supported(
+            &self.conn,
+            0,
+            &[
+                self.conn.SUPPORTED(),
+                self.conn.SUPPORTING_WM_CHECK(),
+                self.conn.ACTIVE_WINDOW(),
+                self.conn.CLIENT_LIST(),
+                self.conn.CURRENT_DESKTOP(),
+                self.conn.DESKTOP_NAMES(),
+                self.conn.NUMBER_OF_DESKTOPS(),
+                self.conn.WM_STATE(),
+                self.conn.WM_STATE_FULLSCREEN(),
+                self.conn.WM_WINDOW_TYPE(),
+                self.conn.WM_WINDOW_TYPE_DIALOG(),
+            ],
+        );
+
+        let window = self.conn.generate_id();
+
+        xcb::create_window(
+            &self.conn,
+            xcb::WINDOW_CLASS_COPY_FROM_PARENT as u8,
+            window,
+            screen.root(),
+            0,
+            0,
+            1,
+            1,
+            0,
+            xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
+            screen.root_visual(),
+            &[],
+        );
+
+        xcb_util::ewmh::set_supporting_wm_check(&self.conn, screen.root(), window);
+        xcb_util::ewmh::set_wm_name(&self.conn, window, "mwm");
+        xcb_util::ewmh::set_supporting_wm_check(&self.conn, screen.root(), screen.root());
 
         for command in &self.config.commands {
             grab_key(&self.conn, command.modifier, command.keysym, screen.root());
