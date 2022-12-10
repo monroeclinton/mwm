@@ -53,6 +53,17 @@ impl Clients {
             padding_top,
         });
 
+        // Make sure window does not overlap with statusbar
+        if controlled {
+            xcb::configure_window(
+                &self.conn,
+                window,
+                &[(xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)],
+            );
+        }
+
+        xcb::map_window(&self.conn, window);
+
         // Ensure border width and color is set for non-dock windows
         if self.dock_window != Some(window) {
             xcb::configure_window(
@@ -73,17 +84,6 @@ impl Clients {
             // Set window as active
             self.set_active_window(Some(window));
         }
-
-        // Make sure window does not overlap with statusbar
-        if controlled {
-            xcb::configure_window(
-                &self.conn,
-                window,
-                &[(xcb::CONFIG_WINDOW_Y as u16, self.get_padding_top() as u32)],
-            );
-        }
-
-        xcb::map_window(&self.conn, window);
 
         self.conn.flush();
 
