@@ -13,6 +13,7 @@ impl PluginHandler for MapWindow {
 
         let mut clients = ectx.clients.lock().unwrap();
         clients.create(ectx.event.window());
+        clients.show(ectx.event.window());
 
         Ok(())
     }

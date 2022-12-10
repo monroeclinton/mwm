@@ -35,6 +35,27 @@ impl Clients {
 
         self.conn.flush();
 
+        self.set_workspace_names();
+        self.resize();
+    }
+
+    pub fn show(&mut self, window: xcb::Window) {
+        tracing::debug!("showing client; window={}", window);
+
+        for mut client in self.clients.iter_mut() {
+            if window == client.window {
+                if !client.visible {
+                    xcb::map_window(&self.conn, client.window);
+                }
+
+                client.visible = true;
+                break;
+            }
+        }
+
+        self.conn.flush();
+
+        self.set_workspace_names();
         self.resize();
     }
 
