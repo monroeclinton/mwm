@@ -13,7 +13,8 @@ impl Clients {
                 xcb_util::icccm::get_wm_protocols(&self.conn, window, self.conn.WM_PROTOCOLS())
                     .get_reply();
 
-            let supports_wm_delete_window = reply.unwrap().atoms().contains(&delete_window.atom());
+            let mut supports_wm_delete_window =
+                reply.unwrap().atoms().contains(&delete_window.atom());
 
             if supports_wm_delete_window {
                 let event = xcb::ClientMessageEvent::new(
@@ -29,12 +30,23 @@ impl Clients {
                     ]),
                 );
 
-                xcb::send_event_checked(&self.conn, true, window, xcb::EVENT_MASK_NO_EVENT, &event);
-            } else {
+                supports_wm_delete_window = xcb::send_event_checked(
+                    &self.conn,
+                    true,
+                    window,
+                    xcb::EVENT_MASK_NO_EVENT,
+                    &event,
+                )
+                .request_check()
+                .is_ok();
+            }
+
+            if !supports_wm_delete_window {
                 xcb::set_close_down_mode(&self.conn, xcb::CLOSE_DOWN_DESTROY_ALL as u8);
                 xcb::kill_client(&self.conn, window);
-                self.conn.flush();
             }
+
+            self.conn.flush();
         }
 
         let clients = self
