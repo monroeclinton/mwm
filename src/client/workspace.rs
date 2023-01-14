@@ -56,7 +56,7 @@ impl Clients {
                 let count = self
                     .clients
                     .iter()
-                    .filter(|c| c.workspace == Some(i) && c.visible)
+                    .filter(|c| c.workspace == Some(i) && c.controlled)
                     .count();
 
                 let count_string = count
