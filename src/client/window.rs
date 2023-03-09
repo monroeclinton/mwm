@@ -6,7 +6,7 @@ impl Clients {
 
         self.clients.retain(|c| c.window != window);
 
-        if self.active_window == Some(window) {
+        if self.active_window() == Some(window) {
             let active_window = self
                 .clients
                 .iter()
@@ -123,12 +123,12 @@ impl Clients {
 
         xcb_util::ewmh::set_active_window(&self.conn, 0, window.unwrap_or(xcb::WINDOW_NONE));
 
-        if window != self.active_window {
+        if window != self.active_window() {
             tracing::debug!(
                 "set previous active window to inactive; previous_window={:?}",
                 self.active_window
             );
-            if let Some(active_window) = self.active_window {
+            if let Some(active_window) = self.active_window() {
                 xcb::change_window_attributes(
                     &self.conn,
                     active_window,
@@ -136,10 +136,17 @@ impl Clients {
                 );
             }
 
-            self.active_window = window;
+            self.active_window.insert(self.active_workspace, window);
         }
 
         self.conn.flush();
+    }
+
+    pub fn active_window(&mut self) -> Option<u32> {
+        self.active_window
+            .entry(self.active_workspace)
+            .or_insert(None)
+            .to_owned()
     }
 
     pub fn set_full_screen(&mut self, window: xcb::Window, status: Option<bool>, toggle: bool) {

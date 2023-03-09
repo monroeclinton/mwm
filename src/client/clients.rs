@@ -8,7 +8,7 @@ pub struct Clients {
     pub config: Arc<Config>,
     pub clients: VecDeque<Client>,
     pub active_workspace: u8,
-    pub active_window: Option<xcb::Window>,
+    pub active_window: HashMap<u8, Option<xcb::Window>>,
     pub dock_window: Option<xcb::Window>,
     pub front_window_ratio: HashMap<u8, f32>,
 }
@@ -20,7 +20,7 @@ impl Clients {
             config,
             clients: VecDeque::new(),
             active_workspace: 1,
-            active_window: None,
+            active_window: HashMap::new(),
             dock_window: None,
             front_window_ratio: HashMap::new(),
         }

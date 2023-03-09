@@ -24,7 +24,6 @@ impl Clients {
 
         xcb_util::ewmh::set_current_desktop(&self.conn, 0, self.active_workspace as u32);
 
-        self.set_active_window(None);
         self.resize();
 
         self.conn.flush();

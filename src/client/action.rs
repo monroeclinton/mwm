@@ -4,7 +4,7 @@ use crate::config::Action;
 impl Clients {
     pub fn handle_action(&mut self, _window: xcb::Window, action: Action) {
         // Handle close action
-        if let (Action::Close, Some(window)) = (&action, self.active_window) {
+        if let (Action::Close, Some(window)) = (&action, self.active_window()) {
             let delete_window = xcb::intern_atom(&self.conn, false, "WM_DELETE_WINDOW")
                 .get_reply()
                 .unwrap();
@@ -58,7 +58,7 @@ impl Clients {
 
         let pos = clients
             .iter()
-            .position(|c| Some(c.window) == self.active_window)
+            .position(|c| Some(c.window) == self.active_window())
             .unwrap_or(0);
 
         // Handle the selection actions
