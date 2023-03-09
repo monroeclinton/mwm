@@ -77,7 +77,6 @@ impl WindowManager {
 
         xcb_util::ewmh::set_supporting_wm_check(&self.conn, screen.root(), window);
         xcb_util::ewmh::set_wm_name(&self.conn, window, "mwm");
-        xcb_util::ewmh::set_supporting_wm_check(&self.conn, screen.root(), screen.root());
 
         for command in &self.config.commands {
             grab_key(&self.conn, command.modifier, command.keysym, screen.root());
