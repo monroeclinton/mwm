@@ -1,0 +1,7 @@
+# build
+/target/
+/selector/target/
+/statusbar/target/
+
+# IDE
+/.idea/

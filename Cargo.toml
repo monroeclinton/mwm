@@ -1,0 +1,18 @@
+[package]
+name = "mwm"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.69"
+serde = { version = "1.0.156", features = ["derive"] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+tokio = { version = "1.26.0", features = ["rt-multi-thread", "macros"] }
+toml = "0.7.3"
+
+[dependencies.smithay]
+version = "0.3"
+git = "https://github.com/smithay/smithay.git"
+rev = "6a762a9"
+
