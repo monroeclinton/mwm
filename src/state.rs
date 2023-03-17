@@ -34,6 +34,9 @@ pub struct State {
     pub xdg_shell_state: XdgShellState,
 }
 
+// Implement required handlers for State. We call the delegate_* macro to automatically implement
+// required traits from wayland_server.
+
 impl BufferHandler for State {
     fn buffer_destroyed(&mut self, _buffer: &wl_buffer::WlBuffer) {}
 }
@@ -43,9 +46,13 @@ impl CompositorHandler for State {
         &mut self.compositor_state
     }
 
+    // Called on every buffer commit in Wayland to update a surface. This has the new state of the
+    // surface.
     fn commit(&mut self, surface: &WlSurface) {
+        // Let smithay take the surface buffer so that desktop helpers get the new surface state.
         on_commit_buffer_handler(surface);
 
+        // Find the window with the xdg toplevel surface to update.
         let window = self
             .space
             .elements()
@@ -56,6 +63,7 @@ impl CompositorHandler for State {
         // Refresh the window state.
         window.on_commit();
 
+        // Find if the window has been configured yet.
         let initial_configure_sent = with_states(surface, |states| {
             states
                 .data_map
@@ -67,6 +75,7 @@ impl CompositorHandler for State {
         });
 
         if !initial_configure_sent {
+            // Configure window size/attributes.
             window.toplevel().send_configure();
         }
     }
