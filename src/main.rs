@@ -33,16 +33,16 @@ use smithay::{
 use std::{os::unix::prelude::AsRawFd, sync::Arc, time::Duration};
 
 fn main() -> anyhow::Result<(), anyhow::Error> {
-    // Use calloop::EventLoop to process events from various sources
+    // Use calloop::EventLoop to process events from various sources.
     let mut event_loop: EventLoop<data::Data> = EventLoop::try_new()?;
 
     // A struct that is used to store the state of the compositor, and manage a Backend to
-    // receive events and dispatch messages
+    // send events and receive requests.
     let mut display: Display<state::State> = Display::new()?;
 
     // A Wayland ListeningSocket that implements calloop::EventSource and can be used as an
-    // even source in an EventLoop. Wayland clients will connect to this socket to receive and
-    // send events.
+    // even source in an EventLoop. Wayland clients will connect to this socket to receive events
+    // and send requests.
     let socket = ListeningSocketSource::new_auto()?;
     let socket_name = socket.socket_name().to_os_string();
 
@@ -53,6 +53,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     event_loop
         .handle()
         .insert_source(socket, |stream, _, data| {
+            // Insert a new client into Display with data associated with that client.
+            // This starts the management of the client, the communication is over the UnixStream.
             data.display
                 .handle()
                 .insert_client(stream, Arc::new(data::ClientData))
@@ -62,8 +64,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // Add Display to event loop
     // The EventLoop can take a Generic struct which is a struct containing a file descriptor that
     // calloop monitors for producing events. This file descriptor is created from winit below.
-    // We only need to read for the fd, level triggering will report events whenever the
-    // EventLoop polls.
+    // We only need to read (Interest::READ) the fd, and Mode::Level will look for events every
+    // time the event loop polls.
     event_loop.handle().insert_source(
         Generic::new(
             display.backend().poll_fd().as_raw_fd(),
@@ -90,18 +92,20 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
     // The compositor for our compositor.
     let compositor_state = CompositorState::new::<state::State>(&dh);
-    // Shared memory buffer for sharing a pixel buffers with clients.
+    // Shared memory buffer for sharing buffers with clients. For example wl_buffer uses wl_shm
+    // to create a shared buffer for the compositor to access the surface contents of the client.
     let shm_state = ShmState::new::<state::State>(&dh, vec![]);
-    // The output region (like a monitor or a region of space) for the compositor,
-    // we use xdg for this.
+    // An output is an area of space that the compositor uses, the OutputManagerState tells
+    // wl_output to use the xdg-output extension.
     let output_manager_state = OutputManagerState::new_with_xdg_output::<state::State>(&dh);
-    // Used for desktop applications, defines two types of Wayland surfaces, "toplevel" (for the
-    // main application area) and "popup" (for dialogs/tooltips/etc).
+    // Used for desktop applications, defines two types of Wayland surfaces clients can use,
+    // "toplevel" (for the main application area) and "popup" (for dialogs/tooltips/etc).
     let xdg_shell_state = XdgShellState::new::<state::State>(&dh);
     // A seat is a group of input devices like keyboards, pointers, etc. This manages the seat
     // state.
     let mut seat_state = SeatState::<state::State>::new();
-    // A space to map windows on.
+    // A space to map windows on. Keeps track of windows and outputs, can access either with
+    // space.elements() and space.outputs().
     let space = Space::<Window>::default();
     // Manage copy/paste and drag-and-drop from inputs.
     let data_device_state = DataDeviceState::new::<state::State>(&dh);
@@ -144,9 +148,10 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     };
 
     // Tells the client what the physical properties of the output are.
-    // We don't set correct state until we add the physical properties to an output.
+    // We rely on winit to manage the physical device, so the correct size/make/model is not
+    // needed.
     let physical_properties = output::PhysicalProperties {
-        // Size in mm
+        // Size in mm.
         size: (0, 0).into(),
         // How the physical pixels are organized, (like HorizontalRgb vs VerticalBgr). Just leave
         // as unknown for normal outputs.
@@ -155,16 +160,16 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
         model: "Winit".into(),
     };
 
-    // Create a new output
+    // Create a new output which is an area in the compositor space that can be used by clients.
+    // Normally represents a monitor used by the compositor.
     let output = output::Output::new("winit".to_string(), physical_properties);
-    // Clients can access the global objects to get the physical properties.
+    // Clients can access the global objects to get the physical properties and output state.
     output.create_global::<state::State>(&data.display.handle());
     // Set the state to use winit.
     output.change_current_state(
         // Contains size/refresh from winit.
         Some(mode),
-        // Wayland starts upside down, so flip it.
-        Some(Transform::Flipped180),
+        Some(Transform::Flipped180), // OpenGL ES texture?
         None,
         Some((0, 0).into()),
     );
