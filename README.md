@@ -35,3 +35,4 @@ Two helpful resources for understanding Wayland are [The Wayland Protocol](https
 - [calloop](https://docs.rs/calloop/latest/calloop/) provides an event loop that can take multiple event sources, each with a callback that can respond to events.
 - [wayland_server](https://docs.rs/wayland-server/latest/wayland_server/) gives access to using the Wayland protocol such as sending events to clients, receiving requests, etc.
 - [wayland_protocols](https://docs.rs/wayland-protocols/latest/wayland_protocols/) gives helpers to use Wayland protocol extensions such as [XDG](https://wayland-book.com/xdg-shell-basics.html).
+- [winit](https://docs.rs/winit/latest/winit/) is used as the backend to do rendering and get inputs such as key presses.
