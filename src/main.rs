@@ -3,7 +3,7 @@ mod state;
 
 use smithay::{
     backend::{
-        input::{Event, InputEvent, KeyboardKeyEvent},
+        input::{Event, InputEvent, KeyState, KeyboardKeyEvent},
         renderer::{
             damage::DamageTrackedRenderer, element::surface::WaylandSurfaceRenderElement,
             gles2::Gles2Renderer,
@@ -212,7 +212,9 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                 |_, _, keysym| {
                                     // If the user pressed the letter T, return the action value of
                                     // 1.
-                                    if keysym.modified_sym() == keysyms::KEY_t | keysyms::KEY_T {
+                                    if press_state == KeyState::Pressed
+                                        && keysym.modified_sym() == keysyms::KEY_t | keysyms::KEY_T
+                                    {
                                         FilterResult::Intercept(1)
                                     } else {
                                         FilterResult::Forward
