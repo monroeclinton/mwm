@@ -24,7 +24,7 @@ use smithay::{
         },
         wayland_server::Display,
     },
-    utils::{Rectangle, Transform, SERIAL_COUNTER},
+    utils::{Transform, SERIAL_COUNTER},
     wayland::{
         compositor::CompositorState, data_device::DataDeviceState, output::OutputManagerState,
         shell::xdg::XdgShellState, shm::ShmState, socket::ListeningSocketSource,
@@ -182,8 +182,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     let start_time = std::time::Instant::now();
     let timer = Timer::immediate();
 
-    // Track parts of the output that are "damaged". When a window draws on a new part
-    // of the surface, that section must be redrawn.
+    // Renderer with ability to track damaged elements allowing for the ability to redraw only what
+    // has been damaaged.
     let mut damage_tracked_renderer = DamageTrackedRenderer::from_output(&output);
 
     // Create a event loop with a timer, pump event loop by returning a Duration.
@@ -233,14 +233,11 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                 })
                 .unwrap();
 
-            // Create a damage area the size of the backend output.
-            let size = backend.window_size().physical_size;
-            let damage = Rectangle::from_loc_and_size((0, 0), size);
-
             backend.bind().unwrap();
 
             // Render output by providing backend renderer, the output, the space, and the
             // damage_tracked_renderer for tracking where the surface is damaged.
+            // TODO: Implement damage tracking.
             render_output::<_, WaylandSurfaceRenderElement<Gles2Renderer>, _, _>(
                 &output,
                 backend.renderer(),
@@ -252,8 +249,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             )
             .unwrap();
 
-            // Submit the back buffer to the display, causing the surface to be redrawn.
-            backend.submit(Some(&[damage])).unwrap();
+            // Submit the back buffer to the display.
+            backend.submit(None).unwrap();
 
             // For each of the windows send the frame callbacks to windows telling them to draw.
             state.space.elements().for_each(|window| {
