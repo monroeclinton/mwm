@@ -188,7 +188,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     let timer = Timer::immediate();
 
     // Renderer with ability to track damaged elements allowing for the ability to redraw only what
-    // has been damaaged.
+    // has been damaged.
     let mut damage_tracked_renderer = DamageTrackedRenderer::from_output(&output);
 
     // Create a event loop with a timer, pump event loop by returning a Duration.

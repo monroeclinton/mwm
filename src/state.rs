@@ -49,7 +49,7 @@ impl CompositorHandler for State {
     // Called on every buffer commit in Wayland to update a surface. This has the new state of the
     // surface.
     fn commit(&mut self, surface: &WlSurface) {
-        // Let smithay take the surface buffer so that desktop helpers get the new surface state.
+        // Let Smithay take the surface buffer so that desktop helpers get the new surface state.
         on_commit_buffer_handler(surface);
 
         // Find the window with the xdg toplevel surface to update.
