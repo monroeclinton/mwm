@@ -30,7 +30,7 @@ impl<T: Texture> PointerElement<T> {
 
         let size = var("XCURSOR_SIZE")
             .ok()
-            .and_then(|s| s.parse().ok())
+            .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(24);
 
         let cursor_theme = CursorTheme::load(&theme);
@@ -43,7 +43,7 @@ impl<T: Texture> PointerElement<T> {
         let cursor_images = parse_xcursor(&cursor_data)
             .unwrap()
             .into_iter()
-            .filter(move |image| image.width == size && image.height == size);
+            .filter(move |image| image.width == size as u32 && image.height == size as u32);
 
         let mut default = BTreeMap::new();
 
@@ -52,7 +52,7 @@ impl<T: Texture> PointerElement<T> {
             total_delay += image.delay as u64;
 
             let texture = renderer
-                .import_memory(image.pixels_rgba.as_slice(), (24, 24).into(), false)
+                .import_memory(image.pixels_rgba.as_slice(), (size, size).into(), false)
                 .unwrap();
 
             let texture_buffer =
