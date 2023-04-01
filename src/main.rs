@@ -204,6 +204,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // has been damaged.
     let mut damage_tracked_renderer = DamageTrackedRenderer::from_output(&output);
 
+    // An element that renders the pointer when rendering the output to display.
     let mut pointer_element = PointerElement::<Gles2Texture>::new(backend.renderer());
 
     // Create a event loop with a timer, pump event loop by returning a Duration.
@@ -252,19 +253,30 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                             let pointer = seat.get_pointer().unwrap();
                             let keyboard = seat.get_keyboard().unwrap();
 
+                            // A serial is a number sent with a event that is sent back to the
+                            // server by the clients in further requests. This allows the server to
+                            // keep track of which event caused which requests. It is an AtomicU32
+                            // that increments when next_serial is called.
                             let serial = SERIAL_COUNTER.next_serial();
 
+                            // Returns which button on the pointer was used.
                             let button = event.button_code();
 
+                            // The state, either released or pressed.
                             let button_state = event.state();
 
+                            // If the button was clicked, focus on the window below if exists, else
+                            // unfocus on windows.
                             if ButtonState::Pressed == button_state {
                                 if let Some((window, _loc)) = state
                                     .space
                                     .element_under(pointer.current_location())
                                     .map(|(w, l)| (w.clone(), l))
                                 {
+                                    // Move window to top of stack.
                                     state.space.raise_element(&window, true);
+
+                                    // Focus on window.
                                     keyboard.set_focus(
                                         state,
                                         Some(window.toplevel().wl_surface().clone()),
@@ -282,6 +294,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                 }
                             };
 
+                            // Send the button event to the client.
                             pointer.button(
                                 state,
                                 &ButtonEvent {
@@ -294,15 +307,18 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                         }
 
                         if let InputEvent::PointerMotionAbsolute { event, .. } = event {
+                            // Get the first output.
                             let output = state.space.outputs().next().unwrap();
                             let output_geo = state.space.output_geometry(output).unwrap();
+                            // Convert the device position to use the output coordinate system.
                             let pointer_location = event.position_transformed(output_geo.size);
 
                             state.pointer_location = pointer_location;
 
-                            let serial = SERIAL_COUNTER.next_serial();
                             let pointer = seat.get_pointer().unwrap();
 
+                            // Get the surface below the pointer if it exists. First get the
+                            // element under a position, then get the surface under that position.
                             let surface_under_pointer = state
                                 .space
                                 .element_under(pointer_location)
@@ -315,6 +331,9 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                         .map(|(s, p)| (s, p + location))
                                 });
 
+                            let serial = SERIAL_COUNTER.next_serial();
+
+                            // Send the motion event to the client.
                             pointer.motion(
                                 state,
                                 surface_under_pointer,
@@ -331,13 +350,18 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
             backend.bind().unwrap();
 
+            // Update the pointer element with the clock to determine which xcursor image to show,
+            // and the cursor status. The status can be set to a surface by a window to show a
+            // custom cursor set by the window.
             pointer_element.set_current_delay(&state.clock);
             pointer_element.set_status(state.cursor_status.clone());
 
+            // Get the cursor position if the output is fractionally scaled.
             let scale = Scale::from(output.current_scale().fractional_scale());
             let cursor_pos = state.pointer_location;
             let cursor_pos_scaled = cursor_pos.to_physical(scale).to_i32_round();
 
+            // Get the rendered elements from the pointer element.
             let elements = pointer_element.render_elements::<PointerRenderElement<Gles2Renderer>>(
                 backend.renderer(),
                 cursor_pos_scaled,
