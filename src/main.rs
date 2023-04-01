@@ -1,18 +1,25 @@
 mod data;
+mod element;
 mod state;
 
+use crate::element::{PointerElement, PointerRenderElement};
 use smithay::{
     backend::{
-        input::{Event, InputEvent, KeyState, KeyboardKeyEvent},
+        input::{
+            AbsolutePositionEvent, ButtonState, Event, InputEvent, KeyState, KeyboardKeyEvent,
+            PointerButtonEvent,
+        },
         renderer::{
-            damage::DamageTrackedRenderer, element::surface::WaylandSurfaceRenderElement,
-            gles2::Gles2Renderer,
+            damage::DamageTrackedRenderer,
+            element::AsRenderElements,
+            gles2::{Gles2Renderer, Gles2Texture},
         },
         winit::{self, WinitEvent},
     },
-    desktop::{space::render_output, Space, Window},
+    desktop::{space::render_output, Space, Window, WindowSurfaceType},
     input::{
         keyboard::{keysyms, FilterResult},
+        pointer::{ButtonEvent, CursorImageStatus, MotionEvent},
         Seat, SeatState,
     },
     output,
@@ -22,9 +29,9 @@ use smithay::{
             timer::{TimeoutAction, Timer},
             EventLoop, Interest, Mode, PostAction,
         },
-        wayland_server::Display,
+        wayland_server::{protocol::wl_surface::WlSurface, Display},
     },
-    utils::{Transform, SERIAL_COUNTER},
+    utils::{Clock, Scale, Transform, SERIAL_COUNTER},
     wayland::{
         compositor::CompositorState, data_device::DataDeviceState, output::OutputManagerState,
         shell::xdg::XdgShellState, shm::ShmState, socket::ListeningSocketSource,
@@ -88,6 +95,9 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // create/disable/remove global objects, send events, etc.
     let dh = display.handle();
 
+    // Basically std::time::Instant, a monotonic clock.
+    let clock = Clock::new().unwrap();
+
     // We will now add global objects to the display.
 
     // The compositor for our compositor.
@@ -121,9 +131,12 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // Create the state of our compositor, store all the global objects we use so we can access
     // them in our application.
     let state = state::State {
+        clock,
         compositor_state,
         data_device_state,
         seat_state,
+        cursor_status: CursorImageStatus::Default,
+        pointer_location: (0.0, 0.0).into(),
         shm_state,
         space,
         output_manager_state,
@@ -191,6 +204,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // has been damaged.
     let mut damage_tracked_renderer = DamageTrackedRenderer::from_output(&output);
 
+    let mut pointer_element = PointerElement::<Gles2Texture>::new(backend.renderer());
+
     // Create a event loop with a timer, pump event loop by returning a Duration.
     event_loop
         .handle()
@@ -229,10 +244,86 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
                             // If the action equals 1, spawn a weston-terminal.
                             if Some(1) == action {
-                                std::process::Command::new("weston-terminal")
-                                    .spawn()
-                                    .unwrap();
+                                std::process::Command::new("chromium").spawn().unwrap();
                             }
+                        }
+
+                        if let InputEvent::PointerButton { event, .. } = event {
+                            let pointer = seat.get_pointer().unwrap();
+                            let keyboard = seat.get_keyboard().unwrap();
+
+                            let serial = SERIAL_COUNTER.next_serial();
+
+                            let button = event.button_code();
+
+                            let button_state = event.state();
+
+                            if ButtonState::Pressed == button_state {
+                                if let Some((window, _loc)) = state
+                                    .space
+                                    .element_under(pointer.current_location())
+                                    .map(|(w, l)| (w.clone(), l))
+                                {
+                                    state.space.raise_element(&window, true);
+                                    keyboard.set_focus(
+                                        state,
+                                        Some(window.toplevel().wl_surface().clone()),
+                                        serial,
+                                    );
+                                    state.space.elements().for_each(|window| {
+                                        window.toplevel().send_configure();
+                                    });
+                                } else {
+                                    state.space.elements().for_each(|window| {
+                                        window.set_activated(false);
+                                        window.toplevel().send_configure();
+                                    });
+                                    keyboard.set_focus(state, Option::<WlSurface>::None, serial);
+                                }
+                            };
+
+                            pointer.button(
+                                state,
+                                &ButtonEvent {
+                                    button,
+                                    state: button_state,
+                                    serial,
+                                    time: event.time_msec(),
+                                },
+                            );
+                        }
+
+                        if let InputEvent::PointerMotionAbsolute { event, .. } = event {
+                            let output = state.space.outputs().next().unwrap();
+                            let output_geo = state.space.output_geometry(output).unwrap();
+                            let pointer_location = event.position_transformed(output_geo.size);
+
+                            state.pointer_location = pointer_location;
+
+                            let serial = SERIAL_COUNTER.next_serial();
+                            let pointer = seat.get_pointer().unwrap();
+
+                            let surface_under_pointer = state
+                                .space
+                                .element_under(pointer_location)
+                                .and_then(|(window, location)| {
+                                    window
+                                        .surface_under(
+                                            pointer_location - location.to_f64(),
+                                            WindowSurfaceType::ALL,
+                                        )
+                                        .map(|(s, p)| (s, p + location))
+                                });
+
+                            pointer.motion(
+                                state,
+                                surface_under_pointer,
+                                &MotionEvent {
+                                    location: pointer_location,
+                                    serial,
+                                    time: event.time_msec(),
+                                },
+                            );
                         }
                     }
                 })
@@ -240,15 +331,28 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
             backend.bind().unwrap();
 
+            pointer_element.set_current_delay(&state.clock);
+            pointer_element.set_status(state.cursor_status.clone());
+
+            let scale = Scale::from(output.current_scale().fractional_scale());
+            let cursor_pos = state.pointer_location;
+            let cursor_pos_scaled = cursor_pos.to_physical(scale).to_i32_round();
+
+            let elements = pointer_element.render_elements::<PointerRenderElement<Gles2Renderer>>(
+                backend.renderer(),
+                cursor_pos_scaled,
+                scale,
+            );
+
             // Render output by providing backend renderer, the output, the space, and the
             // damage_tracked_renderer for tracking where the surface is damaged.
             // TODO: Implement damage tracking.
-            render_output::<_, WaylandSurfaceRenderElement<Gles2Renderer>, _, _>(
+            render_output::<_, PointerRenderElement<Gles2Renderer>, _, _>(
                 &output,
                 backend.renderer(),
                 0,
                 [&state.space],
-                &[],
+                elements.as_slice(),
                 &mut damage_tracked_renderer,
                 [0.1, 0.1, 0.1, 1.0],
             )

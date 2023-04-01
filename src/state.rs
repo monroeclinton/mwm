@@ -3,12 +3,12 @@ use smithay::{
     delegate_compositor, delegate_data_device, delegate_output, delegate_seat, delegate_shm,
     delegate_xdg_shell,
     desktop::{Space, Window},
-    input::{SeatHandler, SeatState},
+    input::{pointer::CursorImageStatus, SeatHandler, SeatState},
     reexports::{
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::protocol::{wl_buffer, wl_seat, wl_surface::WlSurface},
     },
-    utils::Serial,
+    utils::{Clock, Logical, Monotonic, Point, Serial},
     wayland::{
         buffer::BufferHandler,
         compositor::{with_states, CompositorHandler, CompositorState},
@@ -25,11 +25,14 @@ use smithay::{
 };
 
 pub struct State {
+    pub clock: Clock<Monotonic>,
     pub compositor_state: CompositorState,
     pub data_device_state: DataDeviceState,
     pub seat_state: SeatState<Self>,
     pub shm_state: ShmState,
     pub space: Space<Window>,
+    pub cursor_status: CursorImageStatus,
+    pub pointer_location: Point<f64, Logical>,
     pub output_manager_state: OutputManagerState,
     pub xdg_shell_state: XdgShellState,
 }
@@ -129,30 +132,30 @@ impl CompositorHandler for State {
         on_commit_buffer_handler(surface);
 
         // Find the window with the xdg toplevel surface to update.
-        let window = self
+        if let Some(window) = self
             .space
             .elements()
             .find(|w| w.toplevel().wl_surface() == surface)
             .cloned()
-            .unwrap();
+        {
+            // Refresh the window state.
+            window.on_commit();
 
-        // Refresh the window state.
-        window.on_commit();
+            // Find if the window has been configured yet.
+            let initial_configure_sent = with_states(surface, |states| {
+                states
+                    .data_map
+                    .get::<XdgToplevelSurfaceData>()
+                    .unwrap()
+                    .lock()
+                    .unwrap()
+                    .initial_configure_sent
+            });
 
-        // Find if the window has been configured yet.
-        let initial_configure_sent = with_states(surface, |states| {
-            states
-                .data_map
-                .get::<XdgToplevelSurfaceData>()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .initial_configure_sent
-        });
-
-        if !initial_configure_sent {
-            // Configure window size/attributes.
-            window.toplevel().send_configure();
+            if !initial_configure_sent {
+                // Configure window size/attributes.
+                window.toplevel().send_configure();
+            }
         }
     }
 }
@@ -179,8 +182,9 @@ impl SeatHandler for State {
     fn cursor_image(
         &mut self,
         _: &smithay::input::Seat<Self>,
-        _: smithay::input::pointer::CursorImageStatus,
+        image: smithay::input::pointer::CursorImageStatus,
     ) {
+        self.cursor_status = image;
     }
 
     fn focus_changed(&mut self, _: &smithay::input::Seat<Self>, _: Option<&WlSurface>) {}

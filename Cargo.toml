@@ -10,6 +10,7 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 tokio = { version = "1.26.0", features = ["rt-multi-thread", "macros"] }
 toml = "0.7.3"
+xcursor = "0.3.4"
 
 [dependencies.smithay]
 version = "0.3"

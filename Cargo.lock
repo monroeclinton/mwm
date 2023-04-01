@@ -696,6 +696,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "xcursor",
 ]
 
 [[package]]
