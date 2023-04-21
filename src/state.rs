@@ -41,6 +41,9 @@ impl State {
     pub fn refresh_geometry(&mut self) {
         let space = &mut self.space;
 
+        // Remove dead elements
+        space.refresh();
+
         // Get the first output available.
         let output = space.outputs().next().cloned().unwrap();
 
@@ -210,6 +213,10 @@ impl XdgShellHandler for State {
         self.space.map_element(window, (0, 0), false);
 
         // Resize and reposition all the windows.
+        self.refresh_geometry();
+    }
+
+    fn toplevel_destroyed(&mut self, _: ToplevelSurface) {
         self.refresh_geometry();
     }
 
