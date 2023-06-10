@@ -16,6 +16,7 @@ While mwm is under heavy development, there is only a development installation g
 - `libinput`
 - `libgbm`
 - `libseat`
+- `Xephyr`
 
 #### Run
 
