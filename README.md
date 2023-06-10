@@ -22,7 +22,7 @@ While mwm is under heavy development, there is only a development installation g
 Clone this repository then:
 
 ```
-cargo run
+./preview.sh
 ```
 
 ## Documentation
