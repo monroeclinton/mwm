@@ -38,7 +38,7 @@ impl<T: Texture> PointerElement<T> {
 
         // Load the theme and get the default cursor of that theme.
         let cursor_theme = CursorTheme::load(&theme);
-        let cursor_path = cursor_theme.load_icon("default").unwrap();
+        let cursor_path = cursor_theme.load_icon("left_ptr").unwrap();
 
         // Open the xcursor file and read the data.
         let mut cursor_file = File::open(&cursor_path).unwrap();
