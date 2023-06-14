@@ -1,9 +1,11 @@
 mod data;
 mod element;
+mod input;
 mod state;
 mod workspace;
 
 use crate::element::{PointerElement, PointerRenderElement};
+use crate::input::Action;
 use crate::workspace::Workspaces;
 use smithay::{
     backend::{
@@ -39,7 +41,7 @@ use smithay::{
         shell::xdg::XdgShellState, shm::ShmState, socket::ListeningSocketSource,
     },
 };
-use std::{os::unix::prelude::AsRawFd, sync::Arc, time::Duration};
+use std::{convert::TryInto, os::unix::prelude::AsRawFd, sync::Arc, time::Duration};
 
 fn main() -> anyhow::Result<(), anyhow::Error> {
     // Use calloop::EventLoop to process events from various sources.
@@ -227,28 +229,52 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                             let serial = SERIAL_COUNTER.next_serial();
                             let time = Event::time_msec(&event);
                             let press_state = event.state();
-                            let action = seat.get_keyboard().unwrap().input::<u8, _>(
+                            let action = seat.get_keyboard().unwrap().input::<Action, _>(
                                 state,
                                 event.key_code(),
                                 press_state,
                                 serial,
                                 time,
-                                |_, _, keysym| {
-                                    // If the user pressed the letter T, return the action value of
-                                    // 1.
+                                |_, modifiers, handle| {
+                                    // Get representation of what key was pressed.
+                                    let keysym = handle.modified_sym();
+
+                                    // If the user pressed the letter T, return Action::Spawn.
                                     if press_state == KeyState::Pressed
-                                        && keysym.modified_sym() == keysyms::KEY_t | keysyms::KEY_T
+                                        && keysym == keysyms::KEY_t | keysyms::KEY_T
                                     {
-                                        FilterResult::Intercept(1)
-                                    } else {
-                                        FilterResult::Forward
+                                        return FilterResult::Intercept(Action::Spawn(
+                                            "chromium".to_string(),
+                                        ));
                                     }
+
+                                    if press_state == KeyState::Pressed
+                                        && modifiers.alt
+                                        && keysym >= keysyms::KEY_1
+                                        && keysym <= keysyms::KEY_9
+                                    {
+                                        // The workspace indexes are from 0 to 8, so offset by KEY_1.
+                                        return FilterResult::Intercept(
+                                            Action::WorkspaceSetActive(
+                                                (keysym - keysyms::KEY_1).try_into().unwrap(),
+                                            ),
+                                        );
+                                    }
+
+                                    FilterResult::Forward
                                 },
                             );
 
                             // If the action equals 1, spawn a weston-terminal.
-                            if Some(1) == action {
-                                std::process::Command::new("chromium").spawn().unwrap();
+                            if let Some(action) = action {
+                                match action {
+                                    Action::WorkspaceSetActive(workspace) => {
+                                        state.workspaces.set_active(workspace, &mut state.space);
+                                    }
+                                    Action::Spawn(program) => {
+                                        std::process::Command::new(program).spawn().unwrap();
+                                    }
+                                }
                             }
                         }
 
