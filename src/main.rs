@@ -1,8 +1,10 @@
 mod data;
 mod element;
 mod state;
+mod workspace;
 
 use crate::element::{PointerElement, PointerRenderElement};
+use crate::workspace::Workspaces;
 use smithay::{
     backend::{
         input::{
@@ -141,6 +143,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
         space,
         output_manager_state,
         xdg_shell_state,
+        workspaces: Workspaces::new(),
     };
 
     // The data stored in EventLoop, we need access to the Display and compositor state.
