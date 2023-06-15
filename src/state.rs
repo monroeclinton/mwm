@@ -134,7 +134,8 @@ impl XdgShellHandler for State {
 
         // Add the window to the space so we can use it elsewhere in our application, such as the
         // CompositorHandler.
-        self.workspaces.insert_window(window.clone());
+        self.workspaces
+            .insert_window(self.workspaces.active(), window.clone());
         self.space.map_element(window, (0, 0), false);
 
         // Resize and reposition all the windows.

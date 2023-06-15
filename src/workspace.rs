@@ -27,16 +27,18 @@ impl Workspaces {
         }
     }
 
+    pub fn active(&self) -> usize {
+        return self.active_workspace;
+    }
+
     pub fn set_active(&mut self, workspace: usize, space: &mut Space<Window>) {
         self.previous_workspace = self.active_workspace;
         self.active_workspace = workspace;
         self.refresh_geometry(space);
     }
 
-    pub fn insert_window(&mut self, window: Window) {
-        self.workspaces[self.active_workspace]
-            .windows
-            .push(window.clone());
+    pub fn insert_window(&mut self, workspace: usize, window: Window) {
+        self.workspaces[workspace].windows.push(window.clone());
     }
 
     pub fn refresh_geometry(&mut self, space: &mut Space<Window>) {
