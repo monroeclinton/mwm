@@ -2,12 +2,14 @@ use smithay::desktop::{Space, Window};
 
 struct Workspace {
     windows: Vec<Window>,
+    active_window: Option<usize>,
 }
 
 impl Workspace {
     pub fn new() -> Self {
         Self {
             windows: Vec::new(),
+            active_window: None,
         }
     }
 }
@@ -35,6 +37,11 @@ impl Workspaces {
         self.previous_workspace = self.active_workspace;
         self.active_workspace = workspace;
         self.refresh_geometry(space);
+    }
+
+    pub fn set_active_window(&mut self, window: Window) {
+        let mut workspace = &mut self.workspaces[self.active_workspace];
+        workspace.active_window = workspace.windows.iter().position(|w| w == &window);
     }
 
     pub fn insert_window(&mut self, workspace: usize, window: Window) {

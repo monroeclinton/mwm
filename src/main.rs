@@ -348,30 +348,29 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
                             // Get the surface below the pointer if it exists. First get the
                             // element under a position, then get the surface under that position.
-                            let surface_under_pointer = state
-                                .space
-                                .element_under(pointer_location)
-                                .and_then(|(window, location)| {
-                                    window
-                                        .surface_under(
-                                            pointer_location - location.to_f64(),
-                                            WindowSurfaceType::ALL,
-                                        )
-                                        .map(|(s, p)| (s, p + location))
-                                });
+                            let element_with_location = state.space.element_under(pointer_location);
 
-                            let serial = SERIAL_COUNTER.next_serial();
+                            if let Some((window, location)) = element_with_location {
+                                state.workspaces.set_active_window(window.clone());
 
-                            // Send the motion event to the client.
-                            pointer.motion(
-                                state,
-                                surface_under_pointer,
-                                &MotionEvent {
-                                    location: pointer_location,
-                                    serial,
-                                    time: event.time_msec(),
-                                },
-                            );
+                                // Send the motion event to the client.
+                                let surface_under_pointer = window
+                                    .surface_under(
+                                        pointer_location - location.to_f64(),
+                                        WindowSurfaceType::ALL,
+                                    )
+                                    .map(|(s, p)| (s, p + location));
+                                let serial = SERIAL_COUNTER.next_serial();
+                                pointer.motion(
+                                    state,
+                                    surface_under_pointer,
+                                    &MotionEvent {
+                                        location: pointer_location,
+                                        serial,
+                                        time: event.time_msec(),
+                                    },
+                                );
+                            }
                         }
                     }
                 })
