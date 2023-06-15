@@ -48,6 +48,20 @@ impl Workspaces {
         self.workspaces[workspace].windows.push(window.clone());
     }
 
+    pub fn move_window(&mut self, workspace: usize, space: &mut Space<Window>) {
+        if let Some(active_window) = self.workspaces[self.active_workspace].active_window {
+            let window = self.workspaces[self.active_workspace].windows[active_window].clone();
+
+            // Remove window from active workspace.
+            self.workspaces[self.active_workspace]
+                .windows
+                .retain(|w| w != &window);
+            self.insert_window(workspace, window);
+            // Insert and update layout of windows.
+            self.refresh_geometry(space);
+        }
+    }
+
     pub fn refresh_geometry(&mut self, space: &mut Space<Window>) {
         // Remove dead elements.
         space.refresh();

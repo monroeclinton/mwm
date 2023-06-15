@@ -249,16 +249,20 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                     }
 
                                     if press_state == KeyState::Pressed
-                                        && modifiers.alt
+                                        && (modifiers.alt || modifiers.logo)
                                         && keysym >= keysyms::KEY_1
                                         && keysym <= keysyms::KEY_9
                                     {
                                         // The workspace indexes are from 0 to 8, so offset by KEY_1.
-                                        return FilterResult::Intercept(
-                                            Action::WorkspaceSetActive(
+                                        return if modifiers.logo {
+                                            FilterResult::Intercept(Action::WindowSetWorkspace(
                                                 (keysym - keysyms::KEY_1).try_into().unwrap(),
-                                            ),
-                                        );
+                                            ))
+                                        } else {
+                                            FilterResult::Intercept(Action::WorkspaceSetActive(
+                                                (keysym - keysyms::KEY_1).try_into().unwrap(),
+                                            ))
+                                        };
                                     }
 
                                     FilterResult::Forward
@@ -270,6 +274,9 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                 match action {
                                     Action::WorkspaceSetActive(workspace) => {
                                         state.workspaces.set_active(workspace, &mut state.space);
+                                    }
+                                    Action::WindowSetWorkspace(workspace) => {
+                                        state.workspaces.move_window(workspace, &mut state.space);
                                     }
                                     Action::Spawn(program) => {
                                         std::process::Command::new(program).spawn().unwrap();
