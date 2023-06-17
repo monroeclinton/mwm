@@ -1,11 +1,14 @@
 use smithay::{
-    backend::renderer::{
-        element::{
-            surface::{render_elements_from_surface_tree, WaylandSurfaceRenderElement},
-            texture::{TextureBuffer, TextureRenderElement},
-            AsRenderElements,
+    backend::{
+        allocator::Fourcc,
+        renderer::{
+            element::{
+                surface::{render_elements_from_surface_tree, WaylandSurfaceRenderElement},
+                texture::{TextureBuffer, TextureRenderElement},
+                AsRenderElements,
+            },
+            ImportAll, ImportMem, Renderer, Texture,
         },
-        ImportAll, ImportMem, Renderer, Texture,
     },
     input::pointer::CursorImageStatus,
     render_elements,
@@ -64,7 +67,12 @@ impl<T: Texture> PointerElement<T> {
 
             // Generates and binds textures in OpenGL since it is using GLES2.
             let texture = renderer
-                .import_memory(image.pixels_rgba.as_slice(), (size, size).into(), false)
+                .import_memory(
+                    image.pixels_rgba.as_slice(),
+                    Fourcc::Abgr8888,
+                    (size, size).into(),
+                    false,
+                )
                 .unwrap();
 
             // A buffer that represents the texture and can be turned into a TextureRenderElement
@@ -119,6 +127,7 @@ where
         renderer: &mut R,
         location: Point<i32, Physical>,
         scale: Scale<f64>,
+        alpha: f32,
     ) -> Vec<E>
     where
         E: From<PointerRenderElement<R>>,
@@ -146,7 +155,7 @@ where
             }
             CursorImageStatus::Surface(surface) => {
                 // Return the elements from the surface provided by the client.
-                render_elements_from_surface_tree(renderer, surface, location, scale)
+                render_elements_from_surface_tree(renderer, surface, location, scale, alpha)
                     .into_iter()
                     .map(E::from)
                     .collect()

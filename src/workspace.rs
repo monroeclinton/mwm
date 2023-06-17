@@ -129,7 +129,7 @@ impl Workspaces {
                 state.size = Some((width, height).into());
             });
             // Send a xdg_toplevel::configure event because of the state change.
-            window.toplevel().send_configure();
+            window.toplevel().send_pending_configure();
 
             // Move window to new position.
             space.map_element(window.clone(), (x, y), false);

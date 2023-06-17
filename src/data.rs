@@ -1,5 +1,8 @@
 use crate::state::State;
-use smithay::reexports::wayland_server::{backend, Display};
+use smithay::{
+    reexports::wayland_server::{backend, Display},
+    wayland::compositor::CompositorClientState,
+};
 
 // Used for the calloop::EventLoop data
 pub struct Data {
@@ -8,6 +11,9 @@ pub struct Data {
 }
 
 // Used to store client data associated with Wayland clients
-pub struct ClientData;
+#[derive(Default)]
+pub struct ClientData {
+    pub compositor_state: CompositorClientState,
+}
 
 impl backend::ClientData for ClientData {}

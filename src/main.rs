@@ -14,9 +14,9 @@ use smithay::{
             PointerButtonEvent,
         },
         renderer::{
-            damage::DamageTrackedRenderer,
+            damage::OutputDamageTracker,
             element::AsRenderElements,
-            gles2::{Gles2Renderer, Gles2Texture},
+            gles::{GlesRenderer, GlesTexture},
         },
         winit::{self, WinitEvent},
     },
@@ -68,7 +68,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             // This starts the management of the client, the communication is over the UnixStream.
             data.display
                 .handle()
-                .insert_client(stream, Arc::new(data::ClientData))
+                .insert_client(stream, Arc::new(data::ClientData::default()))
                 .unwrap();
         })?;
 
@@ -153,7 +153,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
 
     // Use winit, which is a library for handling windows and their events. Use OpenGL ES 2.0 as
     // the renderer.
-    let (mut backend, mut winit) = winit::init::<Gles2Renderer>().unwrap();
+    let (mut backend, mut winit) = winit::init::<GlesRenderer>().unwrap();
 
     // Get size of winit window.
     let size = backend.window_size().physical_size;
@@ -205,12 +205,11 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     let start_time = std::time::Instant::now();
     let timer = Timer::immediate();
 
-    // Renderer with ability to track damaged elements allowing for the ability to redraw only what
-    // has been damaged.
-    let mut damage_tracked_renderer = DamageTrackedRenderer::from_output(&output);
+    // Tracks output for damaged elements allowing for the ability to redraw only what has been damaged.
+    let mut output_damage_tracker = OutputDamageTracker::from_output(&output);
 
     // An element that renders the pointer when rendering the output to display.
-    let mut pointer_element = PointerElement::<Gles2Texture>::new(backend.renderer());
+    let mut pointer_element = PointerElement::<GlesTexture>::new(backend.renderer());
 
     // Create a event loop with a timer, pump event loop by returning a Duration.
     event_loop
@@ -319,12 +318,12 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                         serial,
                                     );
                                     state.space.elements().for_each(|window| {
-                                        window.toplevel().send_configure();
+                                        window.toplevel().send_pending_configure();
                                     });
                                 } else {
                                     state.space.elements().for_each(|window| {
                                         window.set_activated(false);
-                                        window.toplevel().send_configure();
+                                        window.toplevel().send_pending_configure();
                                     });
                                     keyboard.set_focus(state, Option::<WlSurface>::None, serial);
                                 }
@@ -397,22 +396,26 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             let cursor_pos_scaled = cursor_pos.to_physical(scale).to_i32_round();
 
             // Get the rendered elements from the pointer element.
-            let elements = pointer_element.render_elements::<PointerRenderElement<Gles2Renderer>>(
+            let elements = pointer_element.render_elements::<PointerRenderElement<GlesRenderer>>(
                 backend.renderer(),
                 cursor_pos_scaled,
                 scale,
+                1.0,
             );
+
+            let age = backend.buffer_age().unwrap_or(0);
 
             // Render output by providing backend renderer, the output, the space, and the
             // damage_tracked_renderer for tracking where the surface is damaged.
             // TODO: Implement damage tracking.
-            render_output::<_, PointerRenderElement<Gles2Renderer>, _, _>(
+            render_output::<_, PointerRenderElement<GlesRenderer>, _, _>(
                 &output,
                 backend.renderer(),
-                0,
+                1.0,
+                age,
                 [&state.space],
                 elements.as_slice(),
-                &mut damage_tracked_renderer,
+                &mut output_damage_tracker,
                 [0.1, 0.1, 0.1, 1.0],
             )
             .unwrap();

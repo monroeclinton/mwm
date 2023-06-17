@@ -15,5 +15,4 @@ xcursor = "0.3.4"
 [dependencies.smithay]
 version = "0.3"
 git = "https://github.com/smithay/smithay.git"
-rev = "6a762a9"
-
+rev = "3aab047"

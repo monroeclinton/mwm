@@ -1,4 +1,4 @@
-use crate::workspace::Workspaces;
+use crate::{data::ClientData, workspace::Workspaces};
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
     delegate_compositor, delegate_data_device, delegate_output, delegate_seat, delegate_shm,
@@ -7,12 +7,15 @@ use smithay::{
     input::{pointer::CursorImageStatus, SeatHandler, SeatState},
     reexports::{
         wayland_protocols::xdg::shell::server::xdg_toplevel,
-        wayland_server::protocol::{wl_buffer, wl_seat, wl_surface::WlSurface},
+        wayland_server::{
+            protocol::{wl_buffer, wl_seat, wl_surface::WlSurface},
+            Client,
+        },
     },
     utils::{Clock, Logical, Monotonic, Point, Serial},
     wayland::{
         buffer::BufferHandler,
-        compositor::{with_states, CompositorHandler, CompositorState},
+        compositor::{with_states, CompositorClientState, CompositorHandler, CompositorState},
         data_device::{
             ClientDndGrabHandler, DataDeviceHandler, DataDeviceState, ServerDndGrabHandler,
         },
@@ -51,11 +54,15 @@ impl CompositorHandler for State {
         &mut self.compositor_state
     }
 
+    fn client_compositor_state<'a>(&self, client: &'a Client) -> &'a CompositorClientState {
+        &client.get_data::<ClientData>().unwrap().compositor_state
+    }
+
     // Called on every buffer commit in Wayland to update a surface. This has the new state of the
     // surface.
     fn commit(&mut self, surface: &WlSurface) {
         // Let Smithay take the surface buffer so that desktop helpers get the new surface state.
-        on_commit_buffer_handler(surface);
+        on_commit_buffer_handler::<Self>(surface);
 
         // Find the window with the xdg toplevel surface to update.
         if let Some(window) = self
@@ -80,7 +87,7 @@ impl CompositorHandler for State {
 
             if !initial_configure_sent {
                 // Configure window size/attributes.
-                window.toplevel().send_configure();
+                window.toplevel().send_pending_configure();
             }
         }
     }
@@ -91,6 +98,8 @@ impl ClientDndGrabHandler for State {}
 impl ServerDndGrabHandler for State {}
 
 impl DataDeviceHandler for State {
+    type SelectionUserData = ();
+
     fn data_device_state(&self) -> &DataDeviceState {
         &self.data_device_state
     }
