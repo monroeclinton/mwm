@@ -1,4 +1,4 @@
-use crate::element::MyRenderElements;
+use crate::element::MyRenderElement;
 use crate::renderer::BorderShader;
 use smithay::{
     backend::renderer::gles::GlesRenderer,
@@ -145,7 +145,7 @@ impl Workspaces {
         &self,
         space: &Space<Window>,
         renderer: &GlesRenderer,
-    ) -> Vec<MyRenderElements> {
+    ) -> Vec<MyRenderElement> {
         let windows = &self.workspaces[self.active_workspace].windows;
 
         let mut elements = vec![];
@@ -154,7 +154,7 @@ impl Workspaces {
             let geo = space.element_geometry(window).unwrap();
 
             // Render a border around the window.
-            elements.push(MyRenderElements::from(BorderShader::element(
+            elements.push(MyRenderElement::from(BorderShader::element(
                 renderer, geo, 1.0,
             )));
         }

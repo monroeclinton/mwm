@@ -168,7 +168,7 @@ where
 // Combine all render element types into one.
 // GlesRenderer must be used because PixelShaderElement does not have a generic implementation.
 render_elements! {
-    pub MyRenderElements<=GlesRenderer>;
+    pub MyRenderElement<=GlesRenderer>;
     Pointer=PointerRenderElement<GlesRenderer>,
     Pixel=PixelShaderElement,
 }

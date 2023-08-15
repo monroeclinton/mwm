@@ -5,7 +5,7 @@ mod renderer;
 mod state;
 mod workspace;
 
-use crate::element::{MyRenderElements, PointerElement};
+use crate::element::{MyRenderElement, PointerElement};
 use crate::input::Action;
 use crate::renderer::compile_shaders;
 use crate::workspace::Workspaces;
@@ -401,10 +401,10 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             let cursor_pos_scaled = cursor_pos.to_physical(scale).to_i32_round();
 
             // Holds render elements such as pointer and windows.
-            let mut elements = Vec::<MyRenderElements>::new();
+            let mut elements = Vec::<MyRenderElement>::new();
 
             // Get the rendered elements from the pointer element.
-            elements.extend(pointer_element.render_elements::<MyRenderElements>(
+            elements.extend(pointer_element.render_elements::<MyRenderElement>(
                 backend.renderer(),
                 cursor_pos_scaled,
                 scale,
@@ -427,7 +427,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                 .render_output(backend.renderer(), age, &elements, [0.1, 0.0, 0.0, 1.0])
                 .unwrap();
 
-            render_output::<_, MyRenderElements, _, _>(
+            render_output::<_, MyRenderElement, _, _>(
                 &output,
                 backend.renderer(),
                 1.0,
