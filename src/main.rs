@@ -5,7 +5,7 @@ mod renderer;
 mod state;
 mod workspace;
 
-use crate::element::{PointerElement, PointerRenderElement};
+use crate::element::{MyRenderElements, PointerElement};
 use crate::input::Action;
 use crate::renderer::compile_shaders;
 use crate::workspace::Workspaces;
@@ -400,12 +400,22 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             let cursor_pos = state.pointer_location;
             let cursor_pos_scaled = cursor_pos.to_physical(scale).to_i32_round();
 
+            // Holds render elements such as pointer and windows.
+            let mut elements = Vec::<MyRenderElements>::new();
+
             // Get the rendered elements from the pointer element.
-            let elements = pointer_element.render_elements::<PointerRenderElement<GlesRenderer>>(
+            elements.extend(pointer_element.render_elements::<MyRenderElements>(
                 backend.renderer(),
                 cursor_pos_scaled,
                 scale,
                 1.0,
+            ));
+
+            // Render windows from active workspace.
+            elements.extend(
+                state
+                    .workspaces
+                    .render_elements(&state.space, backend.renderer()),
             );
 
             let age = backend.buffer_age().unwrap_or(0);
@@ -413,7 +423,11 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
             // Render output by providing backend renderer, the output, the space, and the
             // damage_tracked_renderer for tracking where the surface is damaged.
             // TODO: Implement damage tracking.
-            render_output::<_, PointerRenderElement<GlesRenderer>, _, _>(
+            output_damage_tracker
+                .render_output(backend.renderer(), age, &elements, [0.1, 0.0, 0.0, 1.0])
+                .unwrap();
+
+            render_output::<_, MyRenderElements, _, _>(
                 &output,
                 backend.renderer(),
                 1.0,
@@ -421,7 +435,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                 [&state.space],
                 elements.as_slice(),
                 &mut output_damage_tracker,
-                [0.1, 0.1, 0.1, 1.0],
+                [0.1, 0.0, 0.0, 1.0],
             )
             .unwrap();
 
