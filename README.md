@@ -1,6 +1,9 @@
 # mwm
 My window manager that is a work in progress. Currently hacky
 
+## Wayland support
+I'm currently working on a Wayland implementation, find it in the [wayland](https://github.com/monroeclinton/mwm/tree/wayland) branch.
+
 # Installation
 Clone this repo then:
 ```
