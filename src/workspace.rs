@@ -45,7 +45,7 @@ impl Workspaces {
     }
 
     pub fn set_active_window(&mut self, window: Window) {
-        let mut workspace = &mut self.workspaces[self.active_workspace];
+        let workspace = &mut self.workspaces[self.active_workspace];
         workspace.active_window = workspace.windows.iter().position(|w| w == &window);
     }
 
