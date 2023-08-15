@@ -1,4 +1,9 @@
-use smithay::desktop::{Space, Window};
+use crate::element::MyRenderElements;
+use crate::renderer::BorderShader;
+use smithay::{
+    backend::renderer::gles::GlesRenderer,
+    desktop::{Space, Window},
+};
 
 struct Workspace {
     windows: Vec<Window>,
@@ -134,5 +139,26 @@ impl Workspaces {
             // Move window to new position.
             space.map_element(window.clone(), (x, y), false);
         }
+    }
+
+    pub fn render_elements(
+        &self,
+        space: &Space<Window>,
+        renderer: &GlesRenderer,
+    ) -> Vec<MyRenderElements> {
+        let windows = &self.workspaces[self.active_workspace].windows;
+
+        let mut elements = vec![];
+        for window in windows {
+            // Get the geometry of the window to render.
+            let geo = space.element_geometry(window).unwrap();
+
+            // Render a border around the window.
+            elements.push(MyRenderElements::from(BorderShader::element(
+                renderer, geo, 1.0,
+            )));
+        }
+
+        elements
     }
 }
