@@ -1,11 +1,13 @@
 mod data;
 mod element;
 mod input;
+mod renderer;
 mod state;
 mod workspace;
 
 use crate::element::{PointerElement, PointerRenderElement};
 use crate::input::Action;
+use crate::renderer::compile_shaders;
 use crate::workspace::Workspaces;
 use smithay::{
     backend::{
@@ -154,6 +156,9 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // Use winit, which is a library for handling windows and their events. Use OpenGL ES 2.0 as
     // the renderer.
     let (mut backend, mut winit) = winit::init::<GlesRenderer>().unwrap();
+
+    // Compile shaders that the renderer uses to do things like draw borders around windows.
+    compile_shaders(backend.renderer());
 
     // Get size of winit window.
     let size = backend.window_size().physical_size;
