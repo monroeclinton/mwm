@@ -151,7 +151,12 @@ impl Workspaces {
         let mut elements = vec![];
         for window in windows {
             // Get the geometry of the window to render.
-            let geo = space.element_geometry(window).unwrap();
+            let mut geo = space.element_geometry(window).unwrap();
+
+            // Increase the size by 2x the border thickness.
+            geo.size += (4, 4).into();
+            // Shift the location of the top left by the border thickness.
+            geo.loc -= (2, 2).into();
 
             // Render a border around the window.
             elements.push(MyRenderElement::from(BorderShader::element(

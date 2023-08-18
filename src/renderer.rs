@@ -1,5 +1,8 @@
 use smithay::{
-    backend::renderer::gles::{element::PixelShaderElement, GlesPixelProgram, GlesRenderer},
+    backend::renderer::gles::{
+        element::PixelShaderElement, GlesPixelProgram, GlesRenderer, Uniform, UniformName,
+        UniformType,
+    },
     utils::{Logical, Rectangle},
 };
 
@@ -24,14 +27,27 @@ impl BorderShader {
             .0
             .clone();
 
-        PixelShaderElement::new(program, geo, None, alpha, vec![])
+        let point = geo.size.to_point();
+        PixelShaderElement::new(
+            program,
+            geo,
+            None,
+            alpha,
+            vec![Uniform::new(
+                "u_resolution",
+                (point.x as f32, point.y as f32),
+            )],
+        )
     }
 }
 
 pub fn compile_shaders(renderer: &mut GlesRenderer) {
     // Compile GLSL file into pixel shader.
     let border_shader = renderer
-        .compile_custom_pixel_shader(BORDER_SHADER, &[])
+        .compile_custom_pixel_shader(
+            BORDER_SHADER,
+            &[UniformName::new("u_resolution", UniformType::_2f)],
+        )
         .unwrap();
 
     // Save pixel shader in EGL rendering context.
