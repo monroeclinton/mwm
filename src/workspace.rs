@@ -160,7 +160,8 @@ impl Workspaces {
         let windows = &self.workspaces[self.active_workspace].windows;
 
         let mut elements = vec![];
-        for window in windows {
+        // Render elements that have geometry.
+        for window in windows.iter().filter(|w| !w.geometry().is_empty()) {
             // Get the geometry of the window to render.
             if let Some(mut geo) = space.element_geometry(window) {
                 // Increase the size by 2x the border thickness.
