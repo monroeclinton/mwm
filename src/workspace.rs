@@ -3,6 +3,7 @@ use crate::renderer::BorderShader;
 use smithay::{
     backend::renderer::gles::GlesRenderer,
     desktop::{Space, Window},
+    utils::IsAlive,
 };
 
 struct Workspace {
@@ -67,9 +68,19 @@ impl Workspaces {
         }
     }
 
+    pub fn remove_dead_windows(&mut self) {
+        // Loop through each workspace and remove windows where the surface is dead.
+        self.workspaces
+            .iter_mut()
+            .for_each(|x| x.windows.retain(|w| w.alive()));
+    }
+
     pub fn refresh_geometry(&mut self, space: &mut Space<Window>) {
-        // Remove dead elements.
+        // Remove dead elements from space and update geometry.
         space.refresh();
+
+        // Remove dead elements from workspaces.
+        self.remove_dead_windows();
 
         // Hide the previous active workspace.
         self.workspaces[self.previous_workspace]
