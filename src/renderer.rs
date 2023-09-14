@@ -17,6 +17,7 @@ impl BorderShader {
         renderer: &GlesRenderer,
         geo: Rectangle<i32, Logical>,
         alpha: f32,
+        border_color: u32,
     ) -> PixelShaderElement {
         // Retrieve shader from EGL rendering context.
         let program = renderer
@@ -28,15 +29,20 @@ impl BorderShader {
             .clone();
 
         let point = geo.size.to_point();
+
+        let red = border_color >> 16 & 255;
+        let green = border_color >> 8 & 255;
+        let blue = border_color & 255;
+
         PixelShaderElement::new(
             program,
             geo,
             None,
             alpha,
-            vec![Uniform::new(
-                "u_resolution",
-                (point.x as f32, point.y as f32),
-            )],
+            vec![
+                Uniform::new("u_resolution", (point.x as f32, point.y as f32)),
+                Uniform::new("border_color", (red as f32, green as f32, blue as f32)),
+            ],
         )
     }
 }
@@ -46,7 +52,10 @@ pub fn compile_shaders(renderer: &mut GlesRenderer) {
     let border_shader = renderer
         .compile_custom_pixel_shader(
             BORDER_SHADER,
-            &[UniformName::new("u_resolution", UniformType::_2f)],
+            &[
+                UniformName::new("u_resolution", UniformType::_2f),
+                UniformName::new("border_color", UniformType::_3f),
+            ],
         )
         .unwrap();
 

@@ -1,12 +1,13 @@
 precision mediump float;
 // The size or dimensions.
 uniform vec2 u_resolution;
+// Color of border
+uniform vec3 border_color;
 // The ratio of the coordinate to the resolution.
 varying vec2 v_coords;
 
 void main() {
     float thickness = 2.0;
-    vec3 color = vec3(1.0, 0.0, 0.0);
 
     // Get the pixel coordinates.
     vec2 coords = v_coords * u_resolution;
@@ -22,5 +23,5 @@ void main() {
     // The alpha will become 1.0 or greater if any of the above statements are true.
     float alpha = xl + yl + xr + yr;
 
-    gl_FragColor = vec4(color * alpha, alpha);
+    gl_FragColor = vec4(border_color * alpha, alpha);
 }

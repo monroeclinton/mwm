@@ -157,11 +157,16 @@ impl Workspaces {
         space: &Space<Window>,
         renderer: &GlesRenderer,
     ) -> Vec<MyRenderElement> {
+        let active_window = self.workspaces[self.active_workspace].active_window;
         let windows = &self.workspaces[self.active_workspace].windows;
 
         let mut elements = vec![];
         // Render elements that have geometry.
-        for window in windows.iter().filter(|w| !w.geometry().is_empty()) {
+        for (i, window) in windows
+            .iter()
+            .filter(|w| !w.geometry().is_empty())
+            .enumerate()
+        {
             // Get the geometry of the window to render.
             if let Some(mut geo) = space.element_geometry(window) {
                 // Increase the size by 2x the border thickness.
@@ -169,9 +174,15 @@ impl Workspaces {
                 // Shift the location of the top left by the border thickness.
                 geo.loc -= (2, 2).into();
 
+                let color = if Some(i) == active_window {
+                    0xff0000
+                } else {
+                    0x0000ff
+                };
+
                 // Render a border around the window.
                 elements.push(MyRenderElement::from(BorderShader::element(
-                    renderer, geo, 1.0,
+                    renderer, geo, 1.0, color,
                 )));
             };
         }
