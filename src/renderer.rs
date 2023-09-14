@@ -30,9 +30,16 @@ impl BorderShader {
 
         let point = geo.size.to_point();
 
+        // Colors are 24 bits with 8 bits for each red, green, blue value.
+        // To get each color, shift the bits over by the offset and zero
+        // out the other colors. The bitwise AND 255 does this because it will
+        // zero out everything but the last 8 bits. This is where the color
+        // has been shifted to.
         let red = border_color >> 16 & 255;
         let green = border_color >> 8 & 255;
         let blue = border_color & 255;
+
+        let border_thickness = 2.0;
 
         PixelShaderElement::new(
             program,
@@ -42,6 +49,7 @@ impl BorderShader {
             vec![
                 Uniform::new("u_resolution", (point.x as f32, point.y as f32)),
                 Uniform::new("border_color", (red as f32, green as f32, blue as f32)),
+                Uniform::new("border_thickness", border_thickness),
             ],
         )
     }
@@ -55,6 +63,7 @@ pub fn compile_shaders(renderer: &mut GlesRenderer) {
             &[
                 UniformName::new("u_resolution", UniformType::_2f),
                 UniformName::new("border_color", UniformType::_3f),
+                UniformName::new("border_thickness", UniformType::_1f),
             ],
         )
         .unwrap();
