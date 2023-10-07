@@ -362,7 +362,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                             let element_with_location = state.space.element_under(pointer_location);
 
                             if let Some((window, location)) = element_with_location {
-                                state.workspaces.set_active_window(window.clone());
+                                state.workspaces.set_active_window(state.workspaces.active(), window.clone());
 
                                 // Send the motion event to the client.
                                 let surface_under_pointer = window

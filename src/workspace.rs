@@ -45,13 +45,17 @@ impl Workspaces {
         self.refresh_geometry(space);
     }
 
-    pub fn set_active_window(&mut self, window: Window) {
-        let workspace = &mut self.workspaces[self.active_workspace];
+    pub fn set_active_window(&mut self, workspace: usize, window: Window) {
+        let workspace = &mut self.workspaces[workspace];
         workspace.active_window = workspace.windows.iter().position(|w| w == &window);
     }
 
     pub fn insert_window(&mut self, workspace: usize, window: Window) {
         self.workspaces[workspace].windows.push(window.clone());
+
+        if self.workspaces[workspace].windows.len() == 1 {
+            self.set_active_window(workspace, window);
+        }
     }
 
     pub fn move_window(&mut self, workspace: usize, space: &mut Space<Window>) {
