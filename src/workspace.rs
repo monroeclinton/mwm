@@ -39,6 +39,10 @@ impl Workspaces {
         return self.active_workspace;
     }
 
+    pub fn is_workspace_empty(&self, workspace: usize) -> bool {
+        return self.workspaces[workspace].windows.len() == 0;
+    }
+
     pub fn set_active(&mut self, workspace: usize, space: &mut Space<Window>) {
         self.previous_workspace = self.active_workspace;
         self.active_workspace = workspace;

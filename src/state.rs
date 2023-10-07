@@ -153,6 +153,12 @@ impl XdgShellHandler for State {
 
     fn toplevel_destroyed(&mut self, _: ToplevelSurface) {
         self.workspaces.refresh_geometry(&mut self.space);
+
+        if self.workspaces.is_workspace_empty(self.workspaces.active())
+            && self.cursor_status != CursorImageStatus::Default
+        {
+            self.cursor_status = CursorImageStatus::Default;
+        }
     }
 
     fn new_popup(&mut self, _: PopupSurface, _: PositionerState) {}
