@@ -71,6 +71,8 @@ impl Workspaces {
                 .windows
                 .retain(|w| w != &window);
             self.insert_window(workspace, window);
+            // Clear active window.
+            self.workspaces[self.active_workspace].active_window = None;
             // Insert and update layout of windows.
             self.refresh_geometry(space);
         }
