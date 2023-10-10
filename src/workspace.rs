@@ -111,7 +111,7 @@ impl Workspaces {
         let output_height = output_geometry.size.h;
 
         // The gap between windows in px.
-        let gap = 6;
+        let gap = self.config.border_gap;
 
         // Get windows from active workspace.
         let windows = &mut self.workspaces[self.active_workspace].windows;
@@ -173,6 +173,7 @@ impl Workspaces {
     ) -> Vec<MyRenderElement> {
         let active_window = self.workspaces[self.active_workspace].active_window;
         let windows = &self.workspaces[self.active_workspace].windows;
+        let border_thickness = self.config.border_thickness;
 
         let mut elements = vec![];
         // Render elements that have geometry.
@@ -184,19 +185,19 @@ impl Workspaces {
             // Get the geometry of the window to render.
             if let Some(mut geo) = space.element_geometry(window) {
                 // Increase the size by 2x the border thickness.
-                geo.size += (4, 4).into();
+                geo.size += (border_thickness * 2, border_thickness * 2).into();
                 // Shift the location of the top left by the border thickness.
-                geo.loc -= (2, 2).into();
+                geo.loc -= (border_thickness, border_thickness).into();
 
                 let color = if Some(i) == active_window {
-                    0xff0000
+                    self.config.active_border
                 } else {
-                    0x0000ff
+                    self.config.inactive_border
                 };
 
                 // Render a border around the window.
                 elements.push(MyRenderElement::from(BorderShader::element(
-                    renderer, geo, 1.0, color,
+                    renderer, geo, 1.0, color
                 )));
             };
         }
