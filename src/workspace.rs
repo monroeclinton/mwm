@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::element::MyRenderElement;
 use crate::renderer::BorderShader;
 use smithay::{
@@ -5,6 +6,7 @@ use smithay::{
     desktop::{Space, Window},
     utils::IsAlive,
 };
+use std::rc::Rc;
 
 struct Workspace {
     windows: Vec<Window>,
@@ -21,14 +23,16 @@ impl Workspace {
 }
 
 pub struct Workspaces {
+    config: Rc<Config>,
     workspaces: Vec<Workspace>,
     active_workspace: usize,
     previous_workspace: usize,
 }
 
 impl Workspaces {
-    pub fn new() -> Self {
+    pub fn new(config: Rc<Config>) -> Self {
         Self {
+            config,
             workspaces: (0..=8).map(|_| Workspace::new()).collect(),
             active_workspace: 0,
             previous_workspace: 0,

@@ -1,4 +1,6 @@
-use crate::{data::ClientData, workspace::Workspaces};
+use std::rc::Rc;
+
+use crate::{data::ClientData, workspace::Workspaces, config::Config};
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
     delegate_compositor, delegate_data_device, delegate_output, delegate_seat, delegate_shm,
@@ -40,6 +42,7 @@ pub struct State {
     pub output_manager_state: OutputManagerState,
     pub xdg_shell_state: XdgShellState,
     pub workspaces: Workspaces,
+    pub config: Rc<Config>,
 }
 
 // Implement required handlers for State. We call the delegate_* macro to automatically implement

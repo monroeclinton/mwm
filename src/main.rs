@@ -1,3 +1,4 @@
+mod config;
 mod data;
 mod element;
 mod input;
@@ -5,6 +6,7 @@ mod renderer;
 mod state;
 mod workspace;
 
+use crate::config::get_config;
 use crate::element::{MyRenderElement, PointerElement};
 use crate::input::Action;
 use crate::renderer::compile_shaders;
@@ -43,6 +45,7 @@ use smithay::{
         shell::xdg::XdgShellState, shm::ShmState, socket::ListeningSocketSource,
     },
 };
+use std::rc::Rc;
 use std::{convert::TryInto, os::unix::prelude::AsRawFd, sync::Arc, time::Duration};
 
 fn main() -> anyhow::Result<(), anyhow::Error> {
@@ -134,6 +137,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
     // Add pointer to seat.
     seat.add_pointer();
 
+    let config = Rc::new(get_config());
+
     // Create the state of our compositor, store all the global objects we use so we can access
     // them in our application.
     let state = state::State {
@@ -147,7 +152,8 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
         space,
         output_manager_state,
         xdg_shell_state,
-        workspaces: Workspaces::new(),
+        workspaces: Workspaces::new(Rc::clone(&config)),
+        config,
     };
 
     // The data stored in EventLoop, we need access to the Display and compositor state.
