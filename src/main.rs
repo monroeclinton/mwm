@@ -245,7 +245,7 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                 press_state,
                                 serial,
                                 time,
-                                |_, modifiers, handle| {
+                                |state, modifiers, handle| {
                                     // Get representation of what key was pressed.
                                     let keysym = handle.modified_sym();
 
@@ -259,20 +259,21 @@ fn main() -> anyhow::Result<(), anyhow::Error> {
                                     }
 
                                     if press_state == KeyState::Pressed
-                                        && (modifiers.alt || modifiers.logo)
                                         && keysym >= keysyms::KEY_1
                                         && keysym <= keysyms::KEY_9
                                     {
                                         // The workspace indexes are from 0 to 8, so offset by KEY_1.
-                                        return if modifiers.logo {
-                                            FilterResult::Intercept(Action::WindowSetWorkspace(
+                                        if state.config.workspace_move_window_modifier == modifiers {
+                                            return FilterResult::Intercept(Action::WindowSetWorkspace(
                                                 (keysym - keysyms::KEY_1).try_into().unwrap(),
                                             ))
-                                        } else {
-                                            FilterResult::Intercept(Action::WorkspaceSetActive(
+                                        }
+
+                                        if state.config.workspace_modifier == modifiers {
+                                            return FilterResult::Intercept(Action::WorkspaceSetActive(
                                                 (keysym - keysyms::KEY_1).try_into().unwrap(),
                                             ))
-                                        };
+                                        }
                                     }
 
                                     FilterResult::Forward
